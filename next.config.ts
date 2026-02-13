@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["lucide-react"],
   serverExternalPackages: ["pdf-parse", "yt-search"],
-  // Replit handles host verification, but we can explicitly allow everything in dev
+  allowedDevOrigins: ["*"],
   images: {
     remotePatterns: [
       {
@@ -12,9 +12,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  // Ensure the app works correctly behind Replit's proxy
-
   typescript: {
     ignoreBuildErrors: true,
   },
