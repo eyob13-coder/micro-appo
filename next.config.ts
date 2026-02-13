@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["lucide-react"],
+  serverExternalPackages: ["pdf-parse", "yt-search"],
   // Replit handles host verification, but we can explicitly allow everything in dev
   images: {
     remotePatterns: [
@@ -11,13 +12,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  devIndicators: {
-    appIsrStatus: false,
-  },
+
   // Ensure the app works correctly behind Replit's proxy
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
   typescript: {
     ignoreBuildErrors: true,
   },

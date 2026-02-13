@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useEffect } from "react";
 import { Brain, CheckCircle2, ChevronDown, ChevronUp, Heart, Share2, Bookmark, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface MicroLesson {
   id: string;
@@ -47,15 +48,49 @@ const defaultMockLessons: MicroLesson[] = [
   }
 ];
 
-export const TikTokFeed = () => {
-  const [lessons, setLessons] = useState<MicroLesson[]>([]);
+export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] }) => {
+  const [lessons, setLessons] = useState<MicroLesson[]>(initialLessons || []);
   const [index, setIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialLessons);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
+    // Trigger load more when user is 2 items away from end
+    if (index >= lessons.length - 2 && !loadingMore && lessons.length > 0) {
+      loadMoreLessons();
+    }
+  }, [index, lessons.length]);
+
+  const loadMoreLessons = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch('/api/feed/more');
+      if (res.ok) {
+        const newLessons = await res.json();
+        // Append new lessons (ensure unique IDs if possible, but for now just append)
+        if (Array.isArray(newLessons) && newLessons.length > 0) {
+          setLessons(prev => [...prev, ...newLessons]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load more lessons", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    if (initialLessons && initialLessons.length > 0) {
+      setLessons(initialLessons);
+      setLoading(false);
+      return;
+    }
+
     const fetchLessons = async () => {
       try {
         const response = await fetch('/api/feed');
@@ -75,7 +110,7 @@ export const TikTokFeed = () => {
     };
 
     fetchLessons();
-  }, []);
+  }, [initialLessons]);
 
   const next = () => {
     setIndex((i) => Math.min(i + 1, lessons.length - 1));
@@ -91,8 +126,15 @@ export const TikTokFeed = () => {
 
   const lesson = lessons[index];
 
+  // Show loading state if we ran out of lessons but are fetching more
+  if (!lesson && loadingMore) {
+    return <div className="text-white flex items-center justify-center h-full">Generating more lessons...</div>;
+  }
+
+  if (!lesson) return null;
+
   return (
-    <div className="relative w-full h-[700px] max-w-md mx-auto overflow-hidden rounded-[3rem] border border-white/20 bg-zinc-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] flex flex-col">
+    <div className="relative w-full h-full md:h-auto md:aspect-[9/16] max-h-[85vh] w-full max-w-md mx-auto overflow-hidden rounded-[2.5rem] border border-white/20 bg-zinc-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] flex flex-col">
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20" />
@@ -128,7 +170,7 @@ export const TikTokFeed = () => {
             >
               {lesson.type === 'video' ? (
                 <div className="absolute inset-0 bg-black">
-                  <iframe 
+                  <iframe
                     className="w-full h-full object-cover opacity-80"
                     src={lesson.videoUrl}
                     title={lesson.content}
@@ -137,7 +179,7 @@ export const TikTokFeed = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
                   <div className="absolute bottom-12 left-0 right-0 p-8 text-left">
-                    <motion.span 
+                    <motion.span
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       className="inline-block px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold mb-3 uppercase tracking-widest"
@@ -149,7 +191,7 @@ export const TikTokFeed = () => {
                 </div>
               ) : lesson.type === 'summary' ? (
                 <div className="space-y-8 max-w-sm">
-                  <motion.div 
+                  <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/20"
@@ -174,21 +216,19 @@ export const TikTokFeed = () => {
                       <button
                         key={i}
                         onClick={() => setSelectedOption(i)}
-                        className={`group relative p-5 rounded-2xl border-2 transition-all duration-300 text-left font-bold ${
-                          selectedOption === i
-                            ? i === lesson.correctAnswer
-                              ? "bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                              : "bg-red-500/10 border-red-500 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-                            : "border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 text-zinc-400 hover:text-white"
-                        }`}
+                        className={`group relative p-5 rounded-2xl border-2 transition-all duration-300 text-left font-bold ${selectedOption === i
+                          ? i === lesson.correctAnswer
+                            ? "bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                            : "bg-red-500/10 border-red-500 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                          : "border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 text-zinc-400 hover:text-white"
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-lg">{option}</span>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                            selectedOption === i 
-                              ? i === lesson.correctAnswer ? "border-emerald-500 bg-emerald-500" : "border-red-500 bg-red-500"
-                              : "border-white/20"
-                          }`}>
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selectedOption === i
+                            ? i === lesson.correctAnswer ? "border-emerald-500 bg-emerald-500" : "border-red-500 bg-red-500"
+                            : "border-white/20"
+                            }`}>
                             {selectedOption === i && (
                               <CheckCircle2 size={14} className="text-white" />
                             )}
@@ -221,11 +261,11 @@ export const TikTokFeed = () => {
           {/* Progress Bar */}
           <div className="absolute top-8 left-8 right-8 flex gap-2 z-20">
             {lessons.map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden"
               >
-                <motion.div 
+                <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: i <= index ? "100%" : "0%" }}
                   className={`h-full ${i === index ? "bg-blue-500" : "bg-white/40"}`}
@@ -235,19 +275,23 @@ export const TikTokFeed = () => {
           </div>
         </div>
 
-        {/* Interaction Sidebar */}
         <div className="w-20 flex flex-col items-center justify-end gap-6 py-12 z-30">
-          <button 
-            onClick={() => {
-              setLiked(!liked);
-              fetch('/api/progress', {
-                method: 'POST',
-                body: JSON.stringify({ lessonId: lesson.id, status: 'liked' })
-              });
+          <button
+            onClick={async () => {
+              const newStatus = !liked;
+              setLiked(newStatus);
+              try {
+                const res = await fetch('/api/interact', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ lessonId: lesson.id, type: 'like' })
+                });
+                if (res.status === 401) router.push('/auth');
+              } catch (e) { setLiked(!newStatus); }
             }}
             className="flex flex-col items-center gap-1.5 group"
           >
-            <motion.div 
+            <motion.div
               whileTap={{ scale: 0.8 }}
               className={`p-3.5 rounded-full backdrop-blur-md transition-all ${liked ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "bg-white/5 text-white/70 hover:bg-white/10"}`}
             >
@@ -263,17 +307,22 @@ export const TikTokFeed = () => {
             <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/70">Ask</span>
           </button>
 
-          <button 
-            onClick={() => {
-              setSaved(!saved);
-              fetch('/api/progress', {
-                method: 'POST',
-                body: JSON.stringify({ lessonId: lesson.id, status: 'saved' })
-              });
+          <button
+            onClick={async () => {
+              const newStatus = !saved;
+              setSaved(newStatus);
+              try {
+                const res = await fetch('/api/interact', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ lessonId: lesson.id, type: 'save' })
+                });
+                if (res.status === 401) router.push('/auth');
+              } catch (e) { setSaved(!newStatus); }
             }}
             className="flex flex-col items-center gap-1.5 group"
           >
-            <motion.div 
+            <motion.div
               whileTap={{ scale: 0.8 }}
               className={`p-3.5 rounded-full backdrop-blur-md transition-all ${saved ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-white/5 text-white/70 hover:bg-white/10"}`}
             >
@@ -282,7 +331,18 @@ export const TikTokFeed = () => {
             <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/70">Save</span>
           </button>
 
-          <button className="flex flex-col items-center gap-1.5 group">
+          <button
+            onClick={() => {
+              const text = `Check out this lesson: ${lesson.content}`;
+              if (navigator.share) {
+                navigator.share({ title: 'Micro Lesson', text, url: window.location.href });
+              } else {
+                navigator.clipboard.writeText(text);
+                alert('Copied link to clipboard!');
+              }
+            }}
+            className="flex flex-col items-center gap-1.5 group"
+          >
             <div className="p-3.5 rounded-full bg-white/5 text-white/70 backdrop-blur-md hover:bg-white/10 transition-all">
               <Share2 size={26} />
             </div>
@@ -292,14 +352,14 @@ export const TikTokFeed = () => {
           <div className="w-10 h-px bg-white/10 my-2" />
 
           <div className="flex flex-col gap-3">
-            <button 
+            <button
               onClick={prev}
               disabled={index === 0}
               className="p-3 rounded-2xl bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-20 transition-all"
             >
               <ChevronUp size={24} />
             </button>
-            <button 
+            <button
               onClick={next}
               disabled={index === lessons.length - 1}
               className="p-3 rounded-2xl bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-20 transition-all"

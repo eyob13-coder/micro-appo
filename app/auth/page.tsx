@@ -1,124 +1,135 @@
 "use client";
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Zap, Github, Mail, ArrowLeft, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { createAuthClient } from "better-auth/react";
+import { useState } from "react";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import Link from "next/link";
 
-const authClient = createAuthClient({
-    baseURL: typeof window !== "undefined" ? window.location.origin : ""
-});
-
-const AuthPage = () => {
-  const [email, setEmail] = useState('');
+export default function AuthPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
-  const handleSocialLogin = async (provider: 'github' | 'google') => {
-    setIsLoading(true);
-    try {
-        await authClient.signIn.social({
-            provider,
-            callbackURL: "/"
-        });
-    } catch (error) {
-        console.error("Login failed:", error);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
+
     try {
-        await authClient.signIn.email({
-            email,
-            password: "password123", // Simplified for MVP/Demo
-            callbackURL: "/"
+      if (isSignUp) {
+        const { data, error } = await authClient.signUp.email({
+          email,
+          password,
+          name,
         });
-    } catch (error) {
-        console.error("Email login failed:", error);
+        if (error) throw error;
+      } else {
+        const { data, error } = await authClient.signIn.email({
+          email,
+          password,
+        });
+        if (error) throw error;
+      }
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Authentication failed");
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Decorative background blobs */}
-      <div className="absolute top-0 left-0 w-full h-full -z-10 overflow-hidden">
-        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-400/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-400/10 rounded-full blur-[120px]" />
-      </div>
-
-      <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors font-bold">
-        <ArrowLeft size={20} /> Back to home
-      </Link>
-
-      <motion.div 
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-white">
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md space-y-8"
       >
-        <div className="text-center space-y-4">
-          <div className="inline-flex w-12 h-12 bg-blue-600 rounded-2xl items-center justify-center shadow-lg shadow-blue-500/20 mb-2">
-            <Zap className="text-white fill-white" size={24} />
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/20 mb-4">
+            <Sparkles className="text-white" size={24} />
           </div>
-          <h1 className="text-4xl font-black tracking-tight">Join MicroLearn</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg">
-            Align your learning with your attention span.
+          <h1 className="text-3xl font-black tracking-tight">{isSignUp ? "Create Account" : "Welcome Back"}</h1>
+          <p className="text-zinc-400">
+            {isSignUp ? "Join to save your learning progress" : "Sign in to access your dashboard"}
           </p>
         </div>
 
-        <div className="grid gap-4">
-          <button 
-            onClick={() => handleSocialLogin('google')}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 font-black text-lg hover:border-blue-500/50 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {isLoading ? <Loader2 className="animate-spin" size={24} /> : (
-                <div className="w-6 h-6 bg-red-500 rounded-sm flex items-center justify-center text-white text-[10px] font-black">G</div>
-            )}
-            Continue with Google
-          </button>
-
-          <div className="relative py-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-200 dark:border-zinc-800"></div>
+        <form onSubmit={handleSubmit} className="space-y-4 bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 backdrop-blur-sm">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-medium">
+              {error}
             </div>
-            <div className="relative flex justify-center text-sm uppercase">
-              <span className="bg-white dark:bg-zinc-950 px-4 text-zinc-500 font-bold">Or use email</span>
-            </div>
-          </div>
+          )}
 
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            <input 
-              type="email" 
-              placeholder="email@example.com"
+          {isSignUp && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-300">Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 bg-zinc-950 rounded-xl border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                placeholder="John Doe"
+                required
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-300">Email</label>
+            <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-6 py-4 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 focus:border-blue-500 outline-none transition-all font-bold"
+              className="w-full px-4 py-3 bg-zinc-950 rounded-xl border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+              placeholder="hello@example.com"
               required
             />
-            <button 
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 font-black text-lg hover:border-blue-500/50 transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              {isLoading ? <Loader2 className="animate-spin" size={24} /> : <Mail size={24} className="text-zinc-400" />} 
-              Sign up with Email
-            </button>
-          </form>
-        </div>
+          </div>
 
-        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 font-bold">
-          By continuing, you agree to our <br />
-          <Link href="#" className="underline hover:text-blue-600 transition-colors">Terms of Service</Link> and <Link href="#" className="underline hover:text-blue-600 transition-colors">Privacy Policy</Link>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-300">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-950 rounded-xl border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isLoading && <Loader2 className="animate-spin" size={20} />}
+            {isSignUp ? "Create Account" : "Sign In"}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-zinc-500">
+          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-blue-500 hover:underline font-medium"
+          >
+            {isSignUp ? "Sign In" : "Sign Up"}
+          </button>
         </p>
+
+        <Link href="/" className="block text-center text-sm text-zinc-600 hover:text-zinc-400 transition-colors">
+          ← Back to Home
+        </Link>
       </motion.div>
     </div>
   );
-};
-
-export default AuthPage;
+}

@@ -1,8 +1,5 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { createAuthClient } from "better-auth/react";
 
-export const getSession = async () => {
-    return await auth.api.getSession({
-        headers: await headers()
-    });
-};
+export const authClient = createAuthClient({
+    baseURL: typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
+});
