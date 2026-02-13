@@ -42,7 +42,8 @@ Return ONLY valid JSON. Use this format:
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
 export async function generateLessonsFromText(text: string): Promise<MicroLesson[]> {
@@ -58,12 +59,12 @@ export async function generateLessonsFromText(text: string): Promise<MicroLesson
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // or "gpt-4"
+        model: "gpt-5.1",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `--- PDF CONTENT START ---\n${truncatedText}\n--- PDF CONTENT END ---` }
         ],
-        max_tokens: 1000,
+        max_completion_tokens: 2048,
       });
       break;
     } catch (error: any) {
