@@ -19,6 +19,7 @@ import Autoplay from "embla-carousel-autoplay";
 
 const LandingPageContent = () => {
   const pageRef = useRef<HTMLDivElement>(null);
+  const heroCarouselAutoplay = useRef(Autoplay({ delay: 4000, stopOnInteraction: false }));
   const [showFeed, setShowFeed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedLessons, setUploadedLessons] = useState<any[] | null>(null);
@@ -59,13 +60,7 @@ const LandingPageContent = () => {
     gsap.registerPlugin(ScrollTrigger);
 
     const ctx = gsap.context(() => {
-      const heroIntro = gsap.timeline({ defaults: { ease: "power3.out" } });
-      heroIntro
-        .from("[data-gsap-hero-chip]", { opacity: 0, y: 26, duration: 0.7 })
-        .from("[data-gsap-hero-word]", { opacity: 0, yPercent: 120, duration: 0.85, stagger: 0.045 }, "-=0.2")
-        .from("[data-gsap-hero-subtitle]", { opacity: 0, y: 24, duration: 0.65 }, "-=0.35")
-        .from("[data-gsap-hero-actions]", { opacity: 0, y: 28, duration: 0.65 }, "-=0.3")
-        .from("[data-gsap-hero-visual]", { opacity: 0, y: 48, scale: 0.94, duration: 1 }, "-=0.65");
+      // Keep hero content stable on first paint; avoid intro opacity tweens that cause visible flicker.
 
       gsap.to("[data-gsap-float-b]", {
         y: -12,
@@ -113,6 +108,9 @@ const LandingPageContent = () => {
       }
 
       gsap.utils.toArray<HTMLElement>("[data-gsap-section]").forEach((section) => {
+        // Skip hero in generic section reveals to keep first-paint rendering stable.
+        if (section.hasAttribute("data-gsap-hero-section")) return;
+
         ScrollTrigger.create({
           trigger: section,
           start: "top 82%",
@@ -331,20 +329,15 @@ const LandingPageContent = () => {
 
           <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
             <div data-gsap-hero-copy className="space-y-8 text-left">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+              <div
                 data-gsap-hero-chip
                 className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 text-sm font-bold shadow-sm"
               >
                 <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 Revolutionizing Education
-              </motion.div>
+              </div>
 
-              <motion.h1
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              <h1
                 className="text-7xl md:text-8xl font-black tracking-tighter leading-[0.9] text-zinc-950 dark:text-white"
               >
                 <span className="inline-flex flex-wrap gap-x-3">
@@ -366,22 +359,16 @@ const LandingPageContent = () => {
                     </span>
                   ))}
                 </span>
-              </motion.h1>
+              </h1>
 
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
+              <p
                 data-gsap-hero-subtitle
                 className="text-xl md:text-2xl text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed font-medium"
               >
                 The world&apos;s first TikTok-style study app. Turn your boring lectures and PDFs into addictive, bite-sized micro-lessons.
-              </motion.p>
+              </p>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
+              <div
                 data-gsap-hero-actions
                 className="flex flex-col sm:flex-row items-center gap-4"
               >
@@ -445,19 +432,16 @@ const LandingPageContent = () => {
                 {uploadError && (
                   <p className="text-red-500 text-sm font-bold mt-2">{uploadError}</p>
                 )}
-              </motion.div>
+              </div>
             </div>
 
-            <motion.div
+            <div
               data-gsap-hero-visual
-              initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              transition={{ delay: 0.3, duration: 1, ease: [0.16, 1, 0.3, 1] }}
               className="relative"
             >
               <Carousel
                 opts={{ loop: true }}
-                plugins={[Autoplay({ delay: 4000 })]}
+                plugins={[heroCarouselAutoplay.current]}
                 className="relative z-10 rounded-[2.5rem] overflow-hidden border-8 border-white dark:border-zinc-900 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] aspect-[4/5] bg-zinc-100 dark:bg-zinc-800"
               >
                 <CarouselContent>
@@ -515,7 +499,7 @@ const LandingPageContent = () => {
                   </div>
                 </div>
               </motion.div>
-            </motion.div>
+            </div>
           </div>
         </section>
 
