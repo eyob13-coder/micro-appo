@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Zap, Brain, Rocket, Upload, ChevronRight, CheckCircle2, Twitter, Github, MessageCircle, Loader2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -17,7 +17,7 @@ import {
 // @ts-ignore
 import Autoplay from "embla-carousel-autoplay";
 
-const LandingPage = () => {
+const LandingPageContent = () => {
   const pageRef = useRef<HTMLDivElement>(null);
   const [showFeed, setShowFeed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -924,4 +924,10 @@ const LandingPage = () => {
   );
 };
 
-export default LandingPage;
+export default function LandingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black/90" />}>
+      <LandingPageContent />
+    </Suspense>
+  );
+}
