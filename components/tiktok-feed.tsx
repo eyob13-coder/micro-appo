@@ -274,7 +274,7 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
   if (!lesson) return null;
 
   return (
-    <div className="relative w-full h-full md:h-auto md:aspect-[9/16] max-h-[85vh] w-full max-w-md mx-auto overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.8)] flex flex-col">
+    <div className="relative w-full h-full md:h-[92vh] md:max-h-[940px] md:min-h-[760px] md:max-w-[900px] lg:max-w-[980px] mx-auto overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.8)] flex flex-col">
       {/* Background with noise texture overlay for premium feel */}
       <div className="absolute inset-0 z-0 bg-zinc-950">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-purple-900/10" />

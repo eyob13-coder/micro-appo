@@ -14,12 +14,14 @@ export interface MicroLesson {
 export class AIServiceError extends Error {
   status: number;
   code?: string;
+  retryAfterSeconds?: number;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, retryAfterSeconds?: number) {
     super(message);
     this.name = "AIServiceError";
     this.status = status;
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -86,6 +88,22 @@ function getErrorDetails(error: unknown): { status: number; code?: string; messa
   const code = typeof maybeError.code === "string" ? maybeError.code : undefined;
   const message = typeof maybeError.message === "string" ? maybeError.message : "Unknown AI provider error";
   return { status, code, message };
+}
+
+function extractRetryAfterSeconds(message: string): number | undefined {
+  const messageMatch = message.match(/retry in\s+([\d.]+)s/i);
+  if (messageMatch?.[1]) {
+    const parsed = Number.parseFloat(messageMatch[1]);
+    if (!Number.isNaN(parsed) && parsed > 0) return Math.ceil(parsed);
+  }
+
+  const delayMatch = message.match(/"retryDelay"\s*:\s*"(\d+)s"/i);
+  if (delayMatch?.[1]) {
+    const parsed = Number.parseInt(delayMatch[1], 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+
+  return undefined;
 }
 
 function stripTrailingCommas(jsonStr: string): string {
@@ -167,6 +185,75 @@ function normalizeContent(rawContent: unknown, lessonRecord: Record<string, unkn
   if (type === "mcq") return "Quick knowledge check";
   if (typeof lessonRecord.content === "string") return lessonRecord.content;
   return "Key takeaway";
+}
+
+function fallbackOptionsFromSentence(sentence: string): string[] {
+  const short = sentence.length > 80 ? `${sentence.slice(0, 77)}...` : sentence;
+  return [
+    short,
+    "It explains a core concept from the uploaded material.",
+    "It introduces an unrelated topic.",
+    "It summarizes nothing from the source.",
+  ];
+}
+
+function buildLocalFallbackLessons(text: string): MicroLesson[] {
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 30)
+    .slice(0, 4);
+
+  const s1 = sentences[0] ?? "Micro-learning works best when content is concise, sequenced, and easy to recall.";
+  const s2 = sentences[1] ?? "Spaced repetition improves retention by revisiting information over increasing intervals.";
+  const s3 = sentences[2] ?? "Active recall helps move knowledge from short-term memory into long-term memory.";
+  const s4 = sentences[3] ?? "Short sessions and frequent checkpoints improve focus and completion rates.";
+
+  return [
+    {
+      id: "fallback-1",
+      type: "video",
+      content: "Quick concept video for this topic",
+      videoUrl: `SEARCH: ${s1.split(" ").slice(0, 8).join(" ")} animation under 2 minutes`,
+    },
+    {
+      id: "fallback-2",
+      type: "summary",
+      content: s1,
+    },
+    {
+      id: "fallback-3",
+      type: "mcq",
+      content: `Which statement best matches the uploaded material?`,
+      options: fallbackOptionsFromSentence(s2),
+      correctAnswer: 1,
+      explanation: "The second option is the best generic match to the uploaded source context.",
+    },
+    {
+      id: "fallback-4",
+      type: "summary",
+      content: s3,
+    },
+    {
+      id: "fallback-5",
+      type: "mcq",
+      content: "What learning method helps strengthen long-term retention?",
+      options: [
+        "Avoid review and rely on one-time reading.",
+        "Use spaced repetition and active recall.",
+        "Only watch long videos without checkpoints.",
+        "Skip quizzes to reduce cognitive load.",
+      ],
+      correctAnswer: 1,
+      explanation: "Spaced repetition plus active recall is the most reliable strategy for retention.",
+    },
+    {
+      id: "fallback-6",
+      type: "summary",
+      content: s4,
+    },
+  ];
 }
 
 function parseLessons(rawText: string): MicroLesson[] {
@@ -308,7 +395,8 @@ async function generateWithGemini(truncatedText: string): Promise<string> {
     return rawText;
   } catch (error: unknown) {
     const { status, code, message } = getErrorDetails(error);
-    throw new AIServiceError(`Gemini fallback failed: ${message}`, status || 503, code ?? "gemini_error");
+    const retryAfterSeconds = extractRetryAfterSeconds(message);
+    throw new AIServiceError(`Gemini fallback failed: ${message}`, status || 503, code ?? "gemini_error", retryAfterSeconds);
   }
 }
 
@@ -331,9 +419,16 @@ export async function generateLessonsFromText(text: string): Promise<MicroLesson
     console.error(`[AI] ${primaryProviderName} failed:`, error);
     if (error instanceof AIServiceError && gemini && shouldFallbackToGemini(error)) {
       console.warn(`${primaryProviderName} failed (${error.status}${error.code ? `/${error.code}` : ""}). Falling back to Gemini.`);
-      rawText = await generateWithGemini(truncatedText);
+      try {
+        rawText = await generateWithGemini(truncatedText);
+      } catch (fallbackError: unknown) {
+        console.error("[AI] Gemini fallback failed:", fallbackError);
+        console.warn("[AI] Using local fallback lesson generation due to provider quota/unavailability.");
+        return buildLocalFallbackLessons(truncatedText);
+      }
     } else {
-      throw error;
+      console.warn("[AI] Using local fallback lesson generation.");
+      return buildLocalFallbackLessons(truncatedText);
     }
   }
 
@@ -353,19 +448,16 @@ Please provide a concise, clear, and encouraging answer (max 3 sentences).
 `;
 
   let rawText: string;
+  const buildLocalFallbackAnswer = () => {
+    const safeContext = context.replace(/\s+/g, " ").trim();
+    const firstSentence =
+      safeContext.split(/(?<=[.!?])\s+/).find((s) => s.trim().length > 20) ??
+      safeContext.slice(0, 220);
+    return `Quick take: ${firstSentence} Based on your question, focus on this core idea first, then I can break it down step by step.`;
+  };
 
   try {
-    // Reuse internal helpers if possible, or duplicate error handling briefly
-    if (!primaryApiKey) throw new AIServiceError("API key missing", 503);
-
-    // We can't reuse generateWithOpenAI easily because it prompts with system prompt + PDF content structure.
-    // So we'll call openai directly here or modify generateWithOpenAI to accept messages.
-    // For simplicity, let's call openai directly here. The retry logic is good though.
-    // Actually, let's refactor generateWithOpenAI to take "messages" array?
-    // Too risky to refactor heavily now.
-
-    // Minimal direct call:
-    if (primaryProviderName === "DeepSeek" || primaryProviderName === "OpenAI") {
+    if (primaryApiKey && (primaryProviderName === "DeepSeek" || primaryProviderName === "OpenAI")) {
       const response = await openai.chat.completions.create({
         model: PRIMARY_MODEL,
         messages: [{ role: "user", content: prompt }],
@@ -373,11 +465,13 @@ Please provide a concise, clear, and encouraging answer (max 3 sentences).
       });
       rawText = response.choices?.[0]?.message?.content?.trim() || "";
     } else {
-      throw new AIServiceError("Provider not supported for chat yet", 501);
+      throw new AIServiceError("Primary chat provider unavailable", 503);
     }
-
   } catch (error: unknown) {
-    // Fallback to Gemini
+    const details = getErrorDetails(error);
+    const retryAfterSeconds = extractRetryAfterSeconds(details.message);
+    console.warn(`[AI] ${primaryProviderName} chat failed (${details.status}${details.code ? `/${details.code}` : ""}).`);
+
     if (gemini) {
       try {
         const response = await gemini.models.generateContent({
@@ -385,13 +479,18 @@ Please provide a concise, clear, and encouraging answer (max 3 sentences).
           contents: [{ role: "user", parts: [{ text: prompt }] }],
         });
         rawText = response.text?.trim() || "";
-      } catch (e) {
-        throw new AIServiceError("Failed to generate answer", 500);
+      } catch (geminiError: unknown) {
+        const geminiDetails = getErrorDetails(geminiError);
+        console.warn(
+          `[AI] Gemini chat failed (${geminiDetails.status}${geminiDetails.code ? `/${geminiDetails.code}` : ""})` +
+            `${retryAfterSeconds ? `; retry in ~${retryAfterSeconds}s` : ""}. Using local answer fallback.`
+        );
+        return buildLocalFallbackAnswer();
       }
     } else {
-      throw new AIServiceError("Failed to generate answer", 500);
+      return buildLocalFallbackAnswer();
     }
   }
 
-  return rawText;
+  return rawText || buildLocalFallbackAnswer();
 }

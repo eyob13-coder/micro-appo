@@ -7,6 +7,7 @@ import yts from "yt-search";
 
 const FREE_MAX_FILE_SIZE_MB = 60;
 const PRO_MAX_FILE_SIZE_MB = 200;
+const inflightUploads = new Map<string, ReturnType<typeof generateLessonsFromText>>();
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,8 +94,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate micro-lessons using OpenAI
-    const lessons = await generateLessonsFromText(extractedText);
+    // Generate micro-lessons with in-flight dedupe (prevents duplicate parallel uploads from same user/file)
+    const uploadKey = `${session.user.id}:${file.name}:${file.size}:${file.lastModified}`;
+    let generationPromise = inflightUploads.get(uploadKey);
+    if (!generationPromise) {
+      generationPromise = generateLessonsFromText(extractedText);
+      inflightUploads.set(uploadKey, generationPromise);
+    }
+    let lessons;
+    try {
+      lessons = await generationPromise;
+    } finally {
+      inflightUploads.delete(uploadKey);
+    }
 
     // Replace video placeholders with real YouTube URLs
     for (const lesson of lessons) {
@@ -102,7 +114,7 @@ export async function POST(request: NextRequest) {
         const query = lesson.videoUrl.replace("SEARCH:", "").trim();
         try {
           const searchResults = await yts(query);
-          const video = searchResults.videos.find((v: any) => v.seconds < 240); // < 4 min
+          const video = searchResults.videos.find((v: { seconds: number }) => v.seconds < 240); // < 4 min
           if (video) {
             lesson.videoUrl = video.url;
             lesson.content = video.title;
@@ -149,7 +161,21 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Upload error:", error);
     if (error instanceof AIServiceError) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+      const retryHint = error.retryAfterSeconds ? ` Retry in about ${error.retryAfterSeconds}s.` : "";
+      const normalizedMessage =
+        error.status === 429
+          ? `AI quota exceeded.${retryHint} Please add billing/credits or try again later.`
+          : error.message;
+
+      return NextResponse.json(
+        {
+          error: normalizedMessage,
+          code: error.code,
+          retryAfterSeconds: error.retryAfterSeconds,
+          quotaExceeded: error.status === 429 || error.status === 402,
+        },
+        { status: error.status }
+      );
     }
     const message = error instanceof Error ? error.message : "Failed to process PDF";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -908,7 +908,7 @@ const LandingPage = () => {
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => { setShowFeed(false); setUploadedLessons(null); }}
             />
-            <div className="w-full h-full md:w-[500px] md:h-[95%] relative z-10 flex flex-col justify-center">
+            <div className="w-full h-full md:w-[760px] lg:w-[900px] xl:w-[980px] md:h-[95%] relative z-10 flex flex-col justify-center">
               <TikTokFeed initialLessons={uploadedLessons || undefined} />
               <button
                 onClick={() => { setShowFeed(false); setUploadedLessons(null); }}
