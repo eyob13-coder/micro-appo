@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // @ts-expect-error - eslint config is valid but missing from types in Next 16
   eslint: {
     ignoreDuringBuilds: true,
   },
