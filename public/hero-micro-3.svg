@@ -1,0 +1,31 @@
+<svg width="1080" height="1350" viewBox="0 0 1080 1350" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="80" y1="40" x2="990" y2="1320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#052E2B"/>
+      <stop offset="0.46" stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#0891B2"/>
+    </linearGradient>
+    <linearGradient id="chip3" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#34D399"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" rx="48" fill="url(#bg3)"/>
+  <circle cx="840" cy="300" r="220" fill="#A7F3D0" fill-opacity="0.18"/>
+  <circle cx="210" cy="1060" r="240" fill="#67E8F9" fill-opacity="0.15"/>
+  <rect x="170" y="110" width="740" height="1130" rx="58" fill="#022C22" fill-opacity="0.72" stroke="#DCFCE7" stroke-opacity="0.2"/>
+  <text x="230" y="214" fill="#ECFEFF" font-family="Arial, sans-serif" font-size="44" font-weight="700">Study Like You Scroll</text>
+  <text x="230" y="266" fill="#A7F3D0" font-family="Arial, sans-serif" font-size="24">Fast, focused, and built for momentum.</text>
+  <rect x="230" y="304" width="260" height="54" rx="27" fill="url(#chip3)"/>
+  <text x="274" y="338" fill="#064E3B" font-family="Arial, sans-serif" font-size="22" font-weight="700">Flow State</text>
+  <rect x="230" y="392" width="620" height="250" rx="30" fill="#042F2E" stroke="#5EEAD4" stroke-opacity="0.45"/>
+  <text x="274" y="472" fill="#F0FDFA" font-family="Arial, sans-serif" font-size="32" font-weight="700">Lesson Stack</text>
+  <text x="274" y="522" fill="#99F6E4" font-family="Arial, sans-serif" font-size="24">Summary -> MCQ -> Video loop keeps attention high.</text>
+  <rect x="230" y="674" width="620" height="160" rx="24" fill="#042F2E" stroke="#334155"/>
+  <text x="274" y="742" fill="#E6FFFA" font-family="Arial, sans-serif" font-size="30" font-weight="700">AI-Tuned Difficulty</text>
+  <text x="274" y="784" fill="#99F6E4" font-family="Arial, sans-serif" font-size="22">Harder when you master, easier when you struggle.</text>
+  <rect x="230" y="866" width="620" height="320" rx="24" fill="#042F2E" stroke="#334155"/>
+  <rect x="274" y="924" width="530" height="52" rx="14" fill="#115E59"/>
+  <rect x="274" y="996" width="420" height="52" rx="14" fill="#115E59"/>
+  <rect x="274" y="1068" width="490" height="52" rx="14" fill="#115E59"/>
+</svg>

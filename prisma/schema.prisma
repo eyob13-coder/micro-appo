@@ -21,6 +21,10 @@ model User {
   sessions      Session[]
   accounts      Account[]
   interactions  UserInteraction[]
+  
+  isPro            Boolean   @default(false)
+  uploadCount      Int       @default(0)
+  stripeCustomerId String?
 
   @@unique([email])
   @@map("user")
@@ -98,5 +102,13 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model SourceMaterial {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  
+  @@map("source_material")
 }
 

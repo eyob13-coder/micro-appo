@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Zap, Brain, Rocket, Upload, ChevronRight, CheckCircle2, Twitter, Github, MessageCircle, Loader2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { TikTokFeed } from '@/components/tiktok-feed';
+import { authClient } from '@/lib/auth-client';
+import { useSearchParams } from 'next/navigation';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   Carousel,
   CarouselContent,
@@ -14,19 +18,228 @@ import {
 import Autoplay from "embla-carousel-autoplay";
 
 const LandingPage = () => {
+  const pageRef = useRef<HTMLDivElement>(null);
   const [showFeed, setShowFeed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedLessons, setUploadedLessons] = useState<any[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const { data: session } = authClient.useSession();
+  const searchParams = useSearchParams();
 
   // State validation to prevent hydration mismatch
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
+  React.useEffect(() => {
+    if (!mounted) return;
+    if (searchParams.get("showFeed") !== "true") return;
+
+    setShowFeed(true);
+    const rawLessons =
+      sessionStorage.getItem("swipr_uploaded_lessons") ||
+      sessionStorage.getItem("microlearn_uploaded_lessons");
+    if (!rawLessons) return;
+
+    try {
+      const parsed = JSON.parse(rawLessons);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setUploadedLessons(parsed);
+      }
+    } catch (e) {
+      console.warn("Failed to parse uploaded lessons from sessionStorage", e);
+    } finally {
+      sessionStorage.removeItem("swipr_uploaded_lessons");
+      sessionStorage.removeItem("microlearn_uploaded_lessons");
+    }
+  }, [mounted, searchParams]);
+
+  useLayoutEffect(() => {
+    if (!mounted || !pageRef.current) return;
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    const ctx = gsap.context(() => {
+      const heroIntro = gsap.timeline({ defaults: { ease: "power3.out" } });
+      heroIntro
+        .from("[data-gsap-hero-chip]", { opacity: 0, y: 26, duration: 0.7 })
+        .from("[data-gsap-hero-word]", { opacity: 0, yPercent: 120, duration: 0.85, stagger: 0.045 }, "-=0.2")
+        .from("[data-gsap-hero-subtitle]", { opacity: 0, y: 24, duration: 0.65 }, "-=0.35")
+        .from("[data-gsap-hero-actions]", { opacity: 0, y: 28, duration: 0.65 }, "-=0.3")
+        .from("[data-gsap-hero-visual]", { opacity: 0, y: 48, scale: 0.94, duration: 1 }, "-=0.65");
+
+      gsap.to("[data-gsap-float-b]", {
+        y: -12,
+        duration: 4.6,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+      });
+
+      const methodFlowA = document.querySelector<HTMLElement>("[data-gsap-method-flow-a]");
+      const methodFlowB = document.querySelector<HTMLElement>("[data-gsap-method-flow-b]");
+      const methodFlowC = document.querySelector<HTMLElement>("[data-gsap-method-flow-c]");
+
+      if (methodFlowA) {
+        gsap.to(methodFlowA, {
+          xPercent: 8,
+          yPercent: -10,
+          duration: 12,
+          ease: "sine.inOut",
+          repeat: -1,
+          yoyo: true,
+        });
+      }
+
+      if (methodFlowB) {
+        gsap.to(methodFlowB, {
+          xPercent: -10,
+          yPercent: 8,
+          duration: 15,
+          ease: "sine.inOut",
+          repeat: -1,
+          yoyo: true,
+        });
+      }
+
+      if (methodFlowC) {
+        gsap.to(methodFlowC, {
+          xPercent: 6,
+          yPercent: 6,
+          duration: 18,
+          ease: "sine.inOut",
+          repeat: -1,
+          yoyo: true,
+        });
+      }
+
+      gsap.utils.toArray<HTMLElement>("[data-gsap-section]").forEach((section) => {
+        ScrollTrigger.create({
+          trigger: section,
+          start: "top 82%",
+          onEnter: () => {
+            gsap.fromTo(
+              section,
+              { opacity: 0, y: 68 },
+              { opacity: 1, y: 0, duration: 1, ease: "power3.out", overwrite: "auto" }
+            );
+          },
+          onEnterBack: () => {
+            gsap.fromTo(
+              section,
+              { opacity: 0, y: 40 },
+              { opacity: 1, y: 0, duration: 0.75, ease: "power3.out", overwrite: "auto" }
+            );
+          },
+        });
+      });
+
+      const scrollRoot = pageRef.current as HTMLElement;
+
+      gsap.to("[data-gsap-orb-a]", {
+        yPercent: 18,
+        xPercent: -10,
+        ease: "none",
+        scrollTrigger: {
+          trigger: scrollRoot,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 1,
+        },
+      });
+
+      gsap.to("[data-gsap-orb-b]", {
+        yPercent: -14,
+        xPercent: 12,
+        ease: "none",
+        scrollTrigger: {
+          trigger: scrollRoot,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 1.2,
+        },
+      });
+
+      ScrollTrigger.create({
+        trigger: "[data-gsap-features-scroller]",
+        start: "top 75%",
+        onEnter: () => {
+          gsap.fromTo(
+            "[data-gsap-feature-card]",
+            { opacity: 0, y: 40, scale: 0.96 },
+            {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.9,
+              stagger: 0.1,
+              ease: "power3.out",
+              overwrite: "auto",
+            }
+          );
+        },
+        onEnterBack: () => {
+          gsap.fromTo(
+            "[data-gsap-feature-card]",
+            { opacity: 0, y: 24, scale: 0.98 },
+            {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.65,
+              stagger: 0.08,
+              ease: "power3.out",
+              overwrite: "auto",
+            }
+          );
+        },
+      });
+
+      const section = document.querySelector<HTMLElement>("[data-gsap-features-scroller]");
+      const track = document.querySelector<HTMLElement>("[data-gsap-feature-track]");
+      if (section && track) {
+        const getDistance = () => Math.max(0, track.scrollWidth - section.clientWidth);
+        const getMaxShift = () => {
+          const distance = getDistance();
+          const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
+          return isMobile ? Math.min(distance, 420) : Math.min(distance, 220);
+        };
+
+        gsap.to(track, {
+          x: () => -getMaxShift(),
+          ease: "none",
+          scrollTrigger: {
+            trigger: section,
+            start: "top 75%",
+            end: "bottom top",
+            scrub: 0.75,
+            invalidateOnRefresh: true,
+          },
+        });
+      }
+
+      gsap.to("[data-gsap-testi-row-1]", {
+        x: -1500,
+        duration: 35,
+        ease: "none",
+        repeat: -1,
+      });
+
+      gsap.fromTo(
+        "[data-gsap-testi-row-2]",
+        { x: -1500 },
+        { x: 0, duration: 38, ease: "none", repeat: -1 }
+      );
+    }, pageRef);
+
+    return () => {
+      ctx.revert();
+    };
+  }, [mounted]);
+
   if (!mounted) return null;
 
   return (
-    <div className="relative min-h-screen bg-black/90 selection:bg-blue-500/30">
+    <div ref={pageRef} className="relative min-h-screen bg-black/90 selection:bg-blue-500/30">
       <motion.div
         animate={showFeed || isProcessing ? { scale: 0.92, opacity: 0.4, filter: "blur(10px)", borderRadius: "30px" } : { scale: 1, opacity: 1, filter: "blur(0px)", borderRadius: "0px" }}
         transition={{ type: "spring", stiffness: 200, damping: 25 }}
@@ -44,61 +257,84 @@ const LandingPage = () => {
                 <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                   <Zap className="text-white fill-white" size={20} />
                 </div>
-                <span className="font-black text-2xl tracking-tighter">MicroLearn</span>
+                <span className="font-black text-2xl tracking-tighter">Swipr</span>
               </div>
 
               <div className="hidden md:flex items-center gap-8">
                 {[
-                  { name: 'Method', href: '#method' },
-                  { name: 'Features', href: '#features' },
-                  { name: 'Testimonials', href: '#testimonials' }
+                  { name: 'Method', id: 'method' },
+                  { name: 'Features', id: 'features' },
+                  { name: 'Testimonials', id: 'testimonials' }
                 ].map((item) => (
-                  <a key={item.name} href={item.href} className="text-sm font-bold text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors uppercase tracking-widest">
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={() => {
+                      document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className="text-sm font-bold text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors uppercase tracking-widest"
+                  >
                     {item.name}
-                  </a>
+                  </button>
                 ))}
               </div>
 
               <div className="flex items-center gap-3">
                 <ThemeToggle />
-                <button
-                  onClick={() => window.location.href = '/auth'}
-                  className="hidden sm:block text-sm font-black px-6 py-2.5 rounded-full bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:scale-105 transition-transform active:scale-95 shadow-md shadow-zinc-500/10"
-                >
-                  GET STARTED
-                </button>
+                {session?.user ? (
+                  <a
+                    href="/dashboard"
+                    className="flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all border border-zinc-200/50 dark:border-zinc-700/50 group"
+                  >
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt={session.user.name || ""}
+                        className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-black">
+                        {(session.user.name || session.user.email || "U").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate max-w-[120px]">
+                      {session.user.name || "Dashboard"}
+                    </span>
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => window.location.href = '/auth'}
+                    className="block text-sm font-black px-6 py-2.5 rounded-full bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:scale-105 transition-transform active:scale-95 shadow-md shadow-zinc-500/10"
+                  >
+                    GET STARTED
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
         </nav>
 
         {/* Hero Section */}
-        <section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[90vh] flex items-center">
+        <section data-gsap-section data-gsap-panel data-gsap-hero-section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[90vh] flex items-center">
           {/* Animated Background Gradients */}
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-                rotate: [0, 45, 0],
-              }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              data-gsap-orb-a
               className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-400/20 rounded-full blur-[120px]"
             />
             <motion.div
-              animate={{
-                scale: [1.2, 1, 1.2],
-                rotate: [0, -45, 0],
-              }}
-              transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+              data-gsap-orb-b
               className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-400/20 rounded-full blur-[120px]"
             />
           </div>
+          <div data-gsap-hero-mask className="absolute inset-0 z-[1] bg-gradient-to-b from-white/70 via-white/20 to-transparent dark:from-zinc-900/70 dark:via-zinc-900/20 dark:to-transparent pointer-events-none" />
 
           <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
-            <div className="space-y-8 text-left">
+            <div data-gsap-hero-copy className="space-y-8 text-left">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
+                data-gsap-hero-chip
                 className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 text-sm font-bold shadow-sm"
               >
                 <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
@@ -111,14 +347,32 @@ const LandingPage = () => {
                 transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                 className="text-7xl md:text-8xl font-black tracking-tighter leading-[0.9] text-zinc-950 dark:text-white"
               >
-                Don&apos;t Study. <br />
-                <span className="italic font-serif font-light text-blue-600 dark:text-blue-400">Consume</span> Wisdom.
+                <span className="inline-flex flex-wrap gap-x-3">
+                  {["Don't", "Study."].map((word) => (
+                    <span key={word} data-gsap-hero-word className="inline-block">
+                      {word}
+                    </span>
+                  ))}
+                </span>
+                <br />
+                <span className="inline-flex flex-wrap gap-x-3">
+                  {["Consume", "Wisdom."].map((word) => (
+                    <span
+                      key={word}
+                      data-gsap-hero-word
+                      className={`inline-block ${word === "Consume" ? "italic font-serif font-light text-blue-600 dark:text-blue-400" : ""}`}
+                    >
+                      {word}
+                    </span>
+                  ))}
+                </span>
               </motion.h1>
 
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
+                data-gsap-hero-subtitle
                 className="text-xl md:text-2xl text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed font-medium"
               >
                 The world&apos;s first TikTok-style study app. Turn your boring lectures and PDFs into addictive, bite-sized micro-lessons.
@@ -128,6 +382,7 @@ const LandingPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
+                data-gsap-hero-actions
                 className="flex flex-col sm:flex-row items-center gap-4"
               >
                 <button
@@ -138,6 +393,11 @@ const LandingPage = () => {
                 </button>
                 <div
                   onClick={() => {
+                    // Auth guard: redirect to login if not authenticated
+                    if (!session?.user) {
+                      window.location.href = '/auth?callbackURL=/';
+                      return;
+                    }
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.accept = '.pdf';
@@ -157,6 +417,14 @@ const LandingPage = () => {
                           if (res.ok && data.lessons) {
                             setUploadedLessons(data.lessons);
                             setShowFeed(true);
+                          } else if (data.requireGoogleAuth) {
+                            setUploadError('Please sign in with Google first.');
+                            setTimeout(() => window.location.href = '/auth?callbackURL=/', 1500);
+                          } else if (data.limitReached) {
+                            setUploadError('Free limit reached (3 uploads). Upgrade to Pro!');
+                          } else if (data.fileTooLarge) {
+                            const max = data.maxFileSizeMb ? `${data.maxFileSizeMb}MB` : 'your plan limit';
+                            setUploadError(`File size too large. Max limit is ${max}.`);
                           } else {
                             setUploadError(data.error || 'Failed to process PDF');
                           }
@@ -181,6 +449,7 @@ const LandingPage = () => {
             </div>
 
             <motion.div
+              data-gsap-hero-visual
               initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
               animate={{ opacity: 1, scale: 1, rotate: 0 }}
               transition={{ delay: 0.3, duration: 1, ease: [0.16, 1, 0.3, 1] }}
@@ -194,19 +463,19 @@ const LandingPage = () => {
                 <CarouselContent>
                   {[
                     {
-                      img: "/hero-1.jpg",
-                      title: "Quantum Physics Explained",
-                      subtitle: "4 slides to mastery"
+                      img: "/hero-micro-1.svg",
+                      title: "AI Micro-Lessons",
+                      subtitle: "Swipe-sized concepts, built for retention"
                     },
                     {
-                      img: "/hero-2.jpg",
-                      title: "Neuroscience Basics",
-                      subtitle: "Learn while you scroll"
+                      img: "/hero-micro-2.svg",
+                      title: "Feed-First Learning",
+                      subtitle: "Summaries, MCQs, and videos in one stream"
                     },
                     {
-                      img: "/hero-3.jpg",
-                      title: "Global Economics",
-                      subtitle: "Bite-sized macro insights"
+                      img: "/hero-micro-3.svg",
+                      title: "Adaptive Momentum",
+                      subtitle: "Your path adjusts to every interaction"
                     }
                   ].map((slide, index) => (
                     <CarouselItem key={index} className="relative aspect-[4/5]">
@@ -221,7 +490,7 @@ const LandingPage = () => {
                           <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
                             <Zap size={16} />
                           </div>
-                          <span className="font-bold text-sm">MicroLearn AI</span>
+                          <span className="font-bold text-sm">Swipr AI</span>
                         </div>
                         <h3 className="text-2xl font-bold">{slide.title}</h3>
                         <p className="text-zinc-200 text-sm font-medium">{slide.subtitle}</p>
@@ -231,19 +500,18 @@ const LandingPage = () => {
                 </CarouselContent>
               </Carousel>
 
-              {/* Floating Elements */}
+              {/* Floating Achievement Badge */}
               <motion.div
-                animate={{ y: [0, -20, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute -top-10 -left-10 p-6 rounded-3xl bg-white dark:bg-zinc-800 shadow-2xl border border-zinc-100 dark:border-zinc-700 z-20"
+                data-gsap-float-b
+                className="absolute -bottom-6 -right-6 p-4 rounded-2xl bg-white dark:bg-zinc-800 shadow-2xl border border-zinc-100 dark:border-zinc-700 z-20"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-                    <CheckCircle2 size={24} />
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                    <Brain size={20} className="text-white" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Daily Goal</p>
-                    <p className="font-black text-zinc-900 dark:text-white">Reached! 🔥</p>
+                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">AI Powered</p>
+                    <p className="font-black text-zinc-900 dark:text-white text-sm">Smart Learning</p>
                   </div>
                 </div>
               </motion.div>
@@ -252,8 +520,24 @@ const LandingPage = () => {
         </section>
 
         {/* Method Section */}
-        <section id="method" className="py-32 bg-zinc-50 dark:bg-zinc-900/30">
-          <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
+        <section id="method" data-gsap-section data-gsap-panel className="relative py-32 overflow-hidden bg-[linear-gradient(120deg,#f8fafc_0%,#eef2ff_45%,#e0f2fe_100%)] dark:bg-[linear-gradient(120deg,#0b1220_0%,#111827_45%,#0b2236_100%)]">
+          <div className="absolute inset-0 pointer-events-none">
+            <div
+              data-gsap-method-flow-a
+              className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-blue-400/25 dark:bg-blue-500/15 blur-3xl"
+            />
+            <div
+              data-gsap-method-flow-b
+              className="absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-cyan-300/20 dark:bg-cyan-500/10 blur-3xl"
+            />
+            <div
+              data-gsap-method-flow-c
+              className="absolute -bottom-24 left-1/3 h-72 w-72 rounded-full bg-indigo-300/25 dark:bg-indigo-500/12 blur-3xl"
+            />
+            <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.08)_1px,transparent_0)] dark:[background-image:radial-gradient(circle_at_1px_1px,rgba(148,163,184,0.14)_1px,transparent_0)] [background-size:26px_26px]" />
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -298,85 +582,102 @@ const LandingPage = () => {
         </section>
 
         {/* Features */}
-        <section id="features" className="py-32 relative overflow-hidden">
+        <section
+          id="features"
+          data-gsap-section
+          data-gsap-panel
+          data-gsap-features-scroller
+          className="py-32 relative overflow-hidden bg-[linear-gradient(120deg,#fff7ed_0%,#fefce8_45%,#ecfeff_100%)] dark:bg-[linear-gradient(120deg,#111827_0%,#0f172a_45%,#042f2e_100%)]"
+        >
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -top-24 left-1/4 h-64 w-64 rounded-full bg-orange-300/30 dark:bg-orange-500/10 blur-3xl" />
+            <div className="absolute top-1/3 -left-20 h-72 w-72 rounded-full bg-amber-300/25 dark:bg-amber-500/10 blur-3xl" />
+            <div className="absolute -bottom-24 right-1/4 h-72 w-72 rounded-full bg-cyan-300/25 dark:bg-cyan-500/10 blur-3xl" />
+            <div className="absolute inset-0 opacity-35 [background-image:repeating-linear-gradient(115deg,rgba(15,23,42,0.06)_0,rgba(15,23,42,0.06)_1px,transparent_1px,transparent_20px)] dark:[background-image:repeating-linear-gradient(115deg,rgba(148,163,184,0.12)_0,rgba(148,163,184,0.12)_1px,transparent_1px,transparent_22px)]" />
+          </div>
           <div className="max-w-7xl mx-auto px-6 relative z-10">
             <div className="text-center max-w-2xl mx-auto mb-20 space-y-4">
               <h2 className="text-4xl md:text-5xl font-black tracking-tight">Engineered for Focus</h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-lg">We didn&apos;t just build an app; we built a new way to interact with information.</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  icon: <Brain className="text-blue-500" />,
-                  title: "AI Snippets",
-                  desc: "Dense textbooks broken down into atomic, digestible facts. No filler, just pure knowledge.",
-                  gradient: "from-blue-500/20 to-transparent"
-                },
-                {
-                  icon: <Zap className="text-amber-500" />,
-                  title: "Infinite Scroll",
-                  desc: "Learn through a familiar TikTok-style interface optimized for dopamine-driven retention.",
-                  gradient: "from-amber-500/20 to-transparent"
-                },
-                {
-                  icon: <Rocket className="text-emerald-500" />,
-                  title: "Active Recall",
-                  desc: "Embedded MCQs every few slides to solidify your memory using neural-spaced repetition.",
-                  gradient: "from-emerald-500/20 to-transparent"
-                }
-              ].map((feature, i) => (
-                <motion.div
-                  key={i}
-                  whileHover={{ y: -10 }}
-                  className="group p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-2xl transition-all relative overflow-hidden"
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
-                  <div className="relative z-10 space-y-4">
-                    <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center border border-zinc-100 dark:border-zinc-700 group-hover:scale-110 transition-transform">
-                      {feature.icon}
-                    </div>
-                    <h3 className="text-2xl font-bold">{feature.title}</h3>
-                    <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed text-lg">
-                      {feature.desc}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-orange-50 dark:from-zinc-900 to-transparent z-20" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-cyan-50 dark:from-teal-950/60 to-transparent z-20" />
+              <div className="overflow-x-auto lg:overflow-visible pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:auto]">
+                <div data-gsap-feature-track className="flex gap-6 md:gap-8 w-max px-1 md:px-2">
+                  {[
+                    {
+                      icon: <Brain className="text-blue-500" />,
+                      title: "AI Snippets",
+                      desc: "Dense textbooks become atomic takeaways with sequencing tuned to your attention rhythm.",
+                      gradient: "from-blue-500/20 to-cyan-500/5"
+                    },
+                    {
+                      icon: <Zap className="text-amber-500" />,
+                      title: "Infinite Scroll",
+                      desc: "A feed-native learning loop designed for flow: low friction, high retention, no dead time.",
+                      gradient: "from-amber-500/20 to-orange-500/5"
+                    },
+                    {
+                      icon: <Rocket className="text-emerald-500" />,
+                      title: "Active Recall",
+                      desc: "MCQs are injected at the right cadence so recall becomes automatic before forgetting hits.",
+                      gradient: "from-emerald-500/20 to-teal-500/5"
+                    },
+                    {
+                      icon: <BookOpen className="text-indigo-500" />,
+                      title: "Adaptive Path",
+                      desc: "Difficulty and topic mix shift in real-time based on skips, saves, completion, and answer quality.",
+                      gradient: "from-indigo-500/20 to-blue-500/5"
+                    }
+                  ].map((feature, i) => (
+                    <motion.div
+                      data-gsap-feature-card
+                      key={i}
+                      whileHover={{ y: -10 }}
+                      className="group relative w-[82vw] sm:w-[66vw] lg:w-[38vw] xl:w-[32vw] min-h-[360px] md:min-h-[420px] p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-2xl transition-all overflow-hidden snap-center"
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-70`} />
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_50%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_50%)]" />
+                      <div className="relative z-10 h-full flex flex-col justify-between space-y-6">
+                        <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center border border-zinc-100 dark:border-zinc-700 group-hover:scale-110 transition-transform">
+                          {feature.icon}
+                        </div>
+                        <div className="space-y-4">
+                          <h3 className="text-3xl font-black tracking-tight">{feature.title}</h3>
+                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed text-lg">
+                            {feature.desc}
+                          </p>
+                        </div>
+                        <div className="w-12 h-1 rounded-full bg-zinc-900/70 dark:bg-white/70" />
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Testimonials Section */}
-        <section id="testimonials" className="py-32 bg-white dark:bg-zinc-950 overflow-hidden">
+        <section id="testimonials" data-gsap-section data-gsap-panel className="py-32 bg-white dark:bg-zinc-950 overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 mb-20 text-center space-y-4">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-6xl font-black tracking-tighter"
             >
-              Loved by <span className="text-blue-600 dark:text-blue-400">Thousands</span> of Scholars.
+              Built for <span className="text-blue-600 dark:text-blue-400">Modern</span> Learners.
             </motion.h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-xl font-medium max-w-2xl mx-auto">
-              See how MicroLearn is changing the game for students around the world.
+              See how Swipr is designed to change how people study.
             </p>
           </div>
 
           <div className="space-y-12">
             {/* First Row - Forward */}
             <div className="flex whitespace-nowrap overflow-hidden">
-              <style jsx>{`
-              @keyframes scroll-forward {
-                from { transform: translateX(0); }
-                to { transform: translateX(-1500px); }
-              }
-              .animate-scroll-forward {
-                animation: scroll-forward 40s linear infinite;
-              }
-              .pause-on-hover:hover {
-                animation-play-state: paused !important;
-              }
-            `}</style>
-              <div className="flex gap-8 px-4 animate-scroll-forward pause-on-hover">
+              <div data-gsap-testi-row-1 className="flex gap-8 px-4">
                 {[
                   { name: "Sarah J.", role: "Med Student", text: "Finally, I can study my anatomy notes while waiting for coffee. Life-changing!", img: "/student-testimonial_1.jpg" },
                   { name: "Alex M.", role: "Law Student", text: "The AI extracts the most complex legal concepts into digestible bites. Incredible.", img: "/student-testimonial_2.jpg" },
@@ -403,19 +704,7 @@ const LandingPage = () => {
 
             {/* Second Row - Reverse */}
             <div className="flex whitespace-nowrap overflow-hidden">
-              <style jsx>{`
-              @keyframes scroll-reverse {
-                from { transform: translateX(-1500px); }
-                to { transform: translateX(0); }
-              }
-              .animate-scroll-reverse {
-                animation: scroll-reverse 45s linear infinite;
-              }
-              .pause-on-hover:hover {
-                animation-play-state: paused !important;
-              }
-            `}</style>
-              <div className="flex gap-8 px-4 animate-scroll-reverse pause-on-hover">
+              <div data-gsap-testi-row-2 className="flex gap-8 px-4">
                 {[
                   { name: "Elena R.", role: "PhD Candidate", text: "The dopamine hit of scrolling mixed with active recall? Genius stuff.", img: "/student-testimonial_2.jpg" },
                   { name: "Marcus L.", role: "Business Major", text: "I finished my entire semester review in one afternoon. Unbelievable.", img: "/student-testimonial_3.jpg" },
@@ -443,7 +732,7 @@ const LandingPage = () => {
         </section>
 
         {/* Organizations Marquee Section */}
-        <section className="py-20 border-y border-zinc-100 dark:border-zinc-900 overflow-hidden bg-zinc-50/50 dark:bg-zinc-950/50">
+        <section data-gsap-section data-gsap-panel className="py-20 border-y border-zinc-100 dark:border-zinc-900 overflow-hidden bg-zinc-50/50 dark:bg-zinc-950/50">
           <div className="max-w-7xl mx-auto px-6 mb-12">
             <p className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400 text-center">Powering students at world-class institutions</p>
           </div>
@@ -500,7 +789,7 @@ const LandingPage = () => {
         </section>
 
         {/* Footer */}
-        <footer className="pt-32 pb-16 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900">
+        <footer data-gsap-panel className="pt-32 pb-16 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900">
           <div className="max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
               <div className="col-span-1 md:col-span-1 space-y-6">
@@ -508,7 +797,7 @@ const LandingPage = () => {
                   <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                     <Zap className="text-white fill-white" size={16} />
                   </div>
-                  <span className="font-black text-xl tracking-tighter">MicroLearn</span>
+                  <span className="font-black text-xl tracking-tighter">Swipr</span>
                 </div>
                 <p className="text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
                   Revolutionizing how the world learns, one 60-second bite at a time. Designed for the modern attention span.
@@ -558,7 +847,7 @@ const LandingPage = () => {
 
             <div className="pt-8 border-t border-zinc-100 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-6">
               <p className="text-zinc-400 text-sm font-bold tracking-tight">
-                © 2026 MicroLearn AI Inc. All rights reserved.
+                © 2026 Swipr AI Inc. All rights reserved.
               </p>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

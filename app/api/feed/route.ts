@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { auth, prisma } from "@/lib/auth";
+import { getLearningProfileForUser } from "@/lib/learning";
 
 // Default fallback lessons if no PDF has been uploaded yet
 const defaultLessons = [
@@ -32,17 +35,47 @@ const defaultLessons = [
     },
 ];
 
-import { prisma } from "@/lib/auth";
+function scoreLesson(
+    content: string,
+    preferredTopics: string[],
+    weakTopics: string[]
+): number {
+    const lower = content.toLowerCase();
+    let score = 0;
+
+    for (const topic of preferredTopics) {
+        if (lower.includes(topic.toLowerCase())) score += 3;
+    }
+    for (const topic of weakTopics) {
+        if (lower.includes(topic.toLowerCase())) score += 2;
+    }
+
+    return score;
+}
 
 export async function GET() {
     try {
-        const lessons = await prisma.lesson.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 20
+        const session = await auth.api.getSession({
+            headers: await headers()
         });
 
+        const lessons = await prisma.lesson.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        });
+
+        if (session?.user && lessons.length > 0) {
+            const profile = await getLearningProfileForUser(prisma, session.user.id);
+            const ranked = [...lessons].sort((a, b) => {
+                const scoreA = scoreLesson(a.content, profile.preferredTopics, profile.dueReviewTopics);
+                const scoreB = scoreLesson(b.content, profile.preferredTopics, profile.dueReviewTopics);
+                return scoreB - scoreA;
+            });
+            return NextResponse.json(ranked.slice(0, 20));
+        }
+
         if (lessons.length > 0) {
-            return NextResponse.json(lessons);
+            return NextResponse.json(lessons.slice(0, 20));
         }
     } catch (error) {
         console.error("Failed to fetch lessons:", error);

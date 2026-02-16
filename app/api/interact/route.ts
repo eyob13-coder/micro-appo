@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma, auth } from "@/lib/auth"; // auth exported from lib/auth
 import { headers } from "next/headers";
 
+const ALLOWED_INTERACTION_TYPES = new Set([
+    "like",
+    "save",
+    "view",
+    "skip",
+    "complete",
+    "mcq_correct",
+    "mcq_wrong",
+]);
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -9,6 +19,9 @@ export async function POST(req: NextRequest) {
 
         if (!lessonId || !type) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+        if (!ALLOWED_INTERACTION_TYPES.has(type)) {
+            return NextResponse.json({ error: "Invalid interaction type" }, { status: 400 });
         }
 
         const session = await auth.api.getSession({
@@ -61,6 +74,12 @@ export async function DELETE(req: NextRequest) {
     try {
         const body = await req.json();
         const { lessonId, type } = body;
+        if (!lessonId || !type) {
+            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+        if (!ALLOWED_INTERACTION_TYPES.has(type)) {
+            return NextResponse.json({ error: "Invalid interaction type" }, { status: 400 });
+        }
 
         const session = await auth.api.getSession({
             headers: await headers()

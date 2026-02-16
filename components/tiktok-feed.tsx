@@ -1,9 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
-import { useEffect } from "react";
-import { Brain, CheckCircle2, ChevronDown, ChevronUp, Heart, Share2, Bookmark, MessageCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import type { TouchEvent } from "react";
+import { Brain, CheckCircle2, ChevronDown, ChevronUp, Heart, Share2, Bookmark, MessageCircle, Play, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface MicroLesson {
@@ -26,7 +26,7 @@ const defaultMockLessons: MicroLesson[] = [
     id: "video-1",
     type: "video",
     content: "The Dopamine Loop in Learning",
-    videoUrl: "https://www.youtube.com/embed/URUJD5NEXC8?autoplay=1&mute=1&controls=0&loop=1",
+    videoUrl: "https://www.youtube.com/embed/URUJD5NEXC8", // Already embed format for mock
   },
   {
     id: "2",
@@ -48,6 +48,31 @@ const defaultMockLessons: MicroLesson[] = [
   }
 ];
 
+function getEmbedUrl(url: string | undefined): string {
+  if (!url) return "";
+  try {
+    // Handle standard watch URLs: https://www.youtube.com/watch?v=VIDEO_ID
+    if (url.includes("watch?v=")) {
+      const videoId = url.split("watch?v=")[1]?.split("&")[0];
+      return `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0`;
+    }
+    // Handle short URLs: https://youtu.be/VIDEO_ID
+    if (url.includes("youtu.be/")) {
+      const videoId = url.split("youtu.be/")[1]?.split("?")[0];
+      return `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0`;
+    }
+    // Handle existing embed URLs (just add params if missing)
+    if (url.includes("youtube.com/embed/")) {
+      if (!url.includes("?")) return `${url}?autoplay=0&controls=1&rel=0`;
+      return url;
+    }
+    return url;
+  } catch (e) {
+    console.error("Failed to parse video URL:", url);
+    return "";
+  }
+}
+
 export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] }) => {
   const [lessons, setLessons] = useState<MicroLesson[]>(initialLessons || []);
   const [index, setIndex] = useState(0);
@@ -56,7 +81,35 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Chat State
+  const [showChat, setShowChat] = useState(false);
+  const [chatQue, setChatQue] = useState("");
+  const [chatAnswer, setChatAnswer] = useState<{ q: string; a: string } | null>(null);
+  const [asking, setAsking] = useState(false);
+
+  const VideoRef = useRef<HTMLIFrameElement>(null);
+  const viewedLessonIdsRef = useRef<Set<string>>(new Set());
+  const touchStartYRef = useRef<number | null>(null);
+  const touchStartTimeRef = useRef<number | null>(null);
   const router = useRouter();
+
+  const sendInteraction = async (
+    lessonId: string,
+    type: "like" | "save" | "view" | "skip" | "complete" | "mcq_correct" | "mcq_wrong",
+    method: "POST" | "DELETE" = "POST"
+  ) => {
+    try {
+      await fetch('/api/interact', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lessonId, type })
+      });
+    } catch (e) {
+      // Keep UX smooth even if tracking fails.
+      console.warn("Interaction tracking failed", e);
+    }
+  };
 
   useEffect(() => {
     // Trigger load more when user is 2 items away from end
@@ -72,9 +125,13 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
       const res = await fetch('/api/feed/more');
       if (res.ok) {
         const newLessons = await res.json();
-        // Append new lessons (ensure unique IDs if possible, but for now just append)
+        // Append new lessons (filter out duplicates based on ID just in case)
         if (Array.isArray(newLessons) && newLessons.length > 0) {
-          setLessons(prev => [...prev, ...newLessons]);
+          setLessons(prev => {
+            const existingIds = new Set(prev.map(l => l.id));
+            const uniqueNew = newLessons.filter(l => !existingIds.has(l.id));
+            return [...prev, ...uniqueNew];
+          });
         }
       }
     } catch (err) {
@@ -98,7 +155,6 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
           const data = await response.json();
           setLessons(data);
         } else {
-          // Fallback to mock data if API is not yet implemented
           setLessons(defaultMockLessons);
         }
       } catch (error) {
@@ -112,127 +168,316 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
     fetchLessons();
   }, [initialLessons]);
 
+  useEffect(() => {
+    const currentLesson = lessons[index];
+    if (!currentLesson) return;
+
+    if (!viewedLessonIdsRef.current.has(currentLesson.id)) {
+      viewedLessonIdsRef.current.add(currentLesson.id);
+      void sendInteraction(currentLesson.id, "view");
+    }
+  }, [index, lessons]);
+
   const next = () => {
-    setIndex((i) => Math.min(i + 1, lessons.length - 1));
-    setSelectedOption(null);
-  };
-  const prev = () => {
-    setIndex((i) => Math.max(i - 1, 0));
-    setSelectedOption(null);
+    const currentLesson = lessons[index];
+    if (currentLesson) {
+      const isSkippedMcq = currentLesson.type === "mcq" && selectedOption === null;
+      void sendInteraction(currentLesson.id, isSkippedMcq ? "skip" : "complete");
+    }
+
+    if (index < lessons.length - 1) {
+      setIndex(i => i + 1);
+      setSelectedOption(null);
+      setLiked(false);
+      setSaved(false);
+      // Close chat on navigate
+      setShowChat(false);
+      setChatAnswer(null);
+    }
   };
 
-  if (loading) return <div className="text-white flex items-center justify-center h-full">Loading lessons...</div>;
+  const prev = () => {
+    if (index > 0) {
+      setIndex(i => i - 1);
+      setSelectedOption(null);
+      setLiked(false);
+      setSaved(false);
+      setShowChat(false);
+      setChatAnswer(null);
+    }
+  };
+
+  const handleAsk = async () => {
+    if (!chatQue.trim() || asking) return;
+    setAsking(true);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: chatQue, lessonContent: lessons[index].content })
+      });
+      const data = await res.json();
+      if (data.answer) {
+        setChatAnswer({ q: chatQue, a: data.answer });
+        setChatQue("");
+      }
+    } catch (e) {
+      console.error("Chat failed", e);
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    touchStartYRef.current = touch.clientY;
+    touchStartTimeRef.current = Date.now();
+  };
+
+  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    const touch = e.changedTouches[0];
+    if (!touch || touchStartYRef.current === null) return;
+
+    const deltaY = touch.clientY - touchStartYRef.current;
+    const elapsed = Math.max((Date.now() - (touchStartTimeRef.current ?? Date.now())) / 1000, 0.001);
+    const velocityY = deltaY / elapsed;
+
+    const swipeThreshold = 60;
+    const velocityThreshold = 700;
+
+    if (deltaY < -swipeThreshold || velocityY < -velocityThreshold) {
+      next();
+    } else if (deltaY > swipeThreshold || velocityY > velocityThreshold) {
+      prev();
+    }
+
+    touchStartYRef.current = null;
+    touchStartTimeRef.current = null;
+  };
+
+  if (loading) return <div className="text-white flex items-center justify-center h-full animate-pulse">Loading lessons...</div>;
   if (lessons.length === 0) return <div className="text-white flex items-center justify-center h-full">No lessons found.</div>;
 
   const lesson = lessons[index];
 
   // Show loading state if we ran out of lessons but are fetching more
   if (!lesson && loadingMore) {
-    return <div className="text-white flex items-center justify-center h-full">Generating more lessons...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-white space-y-4">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-zinc-400">Curating more content...</p>
+      </div>
+    );
   }
 
   if (!lesson) return null;
 
   return (
-    <div className="relative w-full h-full md:h-auto md:aspect-[9/16] max-h-[85vh] w-full max-w-md mx-auto overflow-hidden rounded-[2.5rem] border border-white/20 bg-zinc-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] flex flex-col">
-      {/* Dynamic Background */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20" />
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-blue-500/10 rounded-full blur-[100px]"
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] bg-purple-500/10 rounded-full blur-[100px]"
-        />
+    <div className="relative w-full h-full md:h-auto md:aspect-[9/16] max-h-[85vh] w-full max-w-md mx-auto overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.8)] flex flex-col">
+      {/* Background with noise texture overlay for premium feel */}
+      <div className="absolute inset-0 z-0 bg-zinc-950">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-purple-900/10" />
+        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
       </div>
 
-      <div className="flex-1 flex relative z-10">
-        {/* Content Area */}
-        <div className="flex-1 relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={index}
-              initial={{ y: 20, opacity: 0, scale: 0.95 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: -20, opacity: 0, scale: 1.05 }}
-              transition={{ type: "spring", stiffness: 200, damping: 25 }}
-              className="absolute inset-0 flex flex-col justify-center items-center text-center p-8"
+      {/* CHAT OVERLAY */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="absolute inset-0 z-50 bg-zinc-950/95 backdrop-blur-xl flex flex-col p-6 pt-12"
+          >
+            <button
+              onClick={() => { setShowChat(false); setChatAnswer(null); }}
+              className="absolute top-4 right-4 p-2 text-white/50 hover:text-white transition-colors"
             >
-              {lesson.type === 'video' ? (
-                <div className="absolute inset-0 bg-black">
-                  <iframe
-                    className="w-full h-full object-cover opacity-80"
-                    src={lesson.videoUrl}
-                    title={lesson.content}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
-                  <div className="absolute bottom-12 left-0 right-0 p-8 text-left">
-                    <motion.span
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="inline-block px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold mb-3 uppercase tracking-widest"
-                    >
-                      Featured Video
-                    </motion.span>
-                    <p className="text-white font-black text-2xl leading-tight drop-shadow-2xl">{lesson.content}</p>
+              <X size={24} />
+            </button>
+
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <MessageCircle className="text-blue-500" />
+              Ask Tutor
+            </h3>
+
+            <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1 custom-scrollbar">
+              {chatAnswer ? (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex justify-end">
+                    <div className="bg-white/10 p-4 rounded-2xl rounded-tr-sm max-w-[85%]">
+                      <p className="text-white/80 text-sm">{chatAnswer.q}</p>
+                    </div>
                   </div>
-                </div>
-              ) : lesson.type === 'summary' ? (
-                <div className="space-y-8 max-w-sm">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/20"
-                  >
-                    <Brain className="text-white" size={40} />
-                  </motion.div>
-                  <div className="space-y-4">
-                    <h2 className="text-3xl font-black tracking-tight text-white leading-tight">
-                      {lesson.content}
-                    </h2>
-                    <div className="w-12 h-1.5 bg-blue-500 rounded-full mx-auto opacity-50" />
+                  <div className="flex justify-start">
+                    <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl rounded-tl-sm max-w-[90%]">
+                      <div className="flex items-center gap-2 mb-2 text-blue-400">
+                        <Brain size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">AI Tutor</span>
+                      </div>
+                      <p className="text-white text-sm leading-relaxed">{chatAnswer.a}</p>
+                    </div>
+                  </div>
+                  <div className="text-center pt-4">
+                    <button
+                      onClick={() => setChatAnswer(null)}
+                      className="text-xs text-blue-400 hover:text-blue-300 underline underline-offset-4"
+                    >
+                      Ask another question
+                    </button>
                   </div>
                 </div>
               ) : (
-                <div className="w-full space-y-8">
+                <div className="flex flex-col items-center justify-center h-full text-white/30 text-sm text-center px-8">
+                  <Brain size={48} className="mb-4 opacity-20" />
+                  <p>Ask a question about this lesson.</p>
+                  <p className="text-xs mt-2 opacity-60">"What does this mean?" or "Give me an example"</p>
+                </div>
+              )}
+            </div>
+
+            {!chatAnswer && (
+              <div className="relative mt-auto">
+                <input
+                  type="text"
+                  value={chatQue}
+                  onChange={(e) => setChatQue(e.target.value)}
+                  placeholder="Type your question..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 pr-12 text-white placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-colors"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAsk()}
+                  autoFocus
+                />
+                <button
+                  onClick={handleAsk}
+                  disabled={asking || !chatQue.trim()}
+                  className="absolute right-2 top-2 p-1.5 rounded-lg bg-blue-500 text-white disabled:opacity-50 disabled:bg-white/10 hover:bg-blue-600 transition-colors"
+                >
+                  {asking ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex-1 flex relative z-10 overflow-hidden">
+        {/* Content Area */}
+        <div
+          className="flex-1 relative h-full"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ touchAction: "pan-y" }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={index}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, { offset, velocity }) => {
+                const swipeThreshold = 50;
+                const velocityThreshold = 500;
+                if (offset.y < -swipeThreshold || velocity.y < -velocityThreshold) {
+                  next();
+                } else if (offset.y > swipeThreshold || velocity.y > velocityThreshold) {
+                  prev();
+                }
+              }}
+              initial={{ y: 50, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: -50, opacity: 0, scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="absolute inset-0 flex flex-col justify-center items-center text-center p-6 touch-none h-full"
+            >
+              {lesson.type === 'video' ? (
+                <div className="absolute inset-0 bg-zinc-900 flex flex-col">
+                  {/* Video Container - taking full height minus header/footer areas */}
+                  <div className="relative flex-1 bg-black flex items-center justify-center">
+                    {lesson.videoUrl && (
+                      <iframe
+                        ref={VideoRef}
+                        className="w-full h-full object-cover"
+                        src={getEmbedUrl(lesson.videoUrl)}
+                        title={lesson.content}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    )}
+                    {/* Gradient Overlay for Text Readability */}
+                    <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent pointer-events-none" />
+                  </div>
+
+                  {/* Video Text Details */}
+                  <div className="absolute bottom-0 left-0 right-0 p-8 pb-12 pointer-events-none">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <span className="inline-block px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-widest mb-3 border border-red-500/20 backdrop-blur-sm">
+                        Watch & Learn
+                      </span>
+                      <h2 className="text-white font-bold text-2xl leading-tight drop-shadow-lg">
+                        {lesson.content}
+                      </h2>
+                    </motion.div>
+                  </div>
+                </div>
+              ) : lesson.type === 'summary' ? (
+                <div className="space-y-8 max-w-sm relative z-10">
+                  <motion.div
+                    initial={{ scale: 0, rotate: -20 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", bounce: 0.5 }}
+                    className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center mx-auto shadow-2xl shadow-indigo-500/30"
+                  >
+                    <Brain className="text-white" size={48} strokeWidth={1.5} />
+                  </motion.div>
+                  <div className="space-y-6">
+                    <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
+                      Key Insight
+                    </span>
+                    <h2 className="text-3xl font-black tracking-tight text-white leading-tight">
+                      {lesson.content}
+                    </h2>
+                    <div className="w-16 h-1.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mx-auto opacity-70" />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full space-y-6 relative z-10 max-h-full overflow-y-auto py-4">
                   <div className="space-y-3">
-                    <span className="text-blue-500 font-black text-xs uppercase tracking-[0.2em]">Knowledge Check</span>
-                    <h2 className="text-2xl font-black text-white leading-tight">{lesson.content}</h2>
+                    <span className="text-emerald-400 font-black text-[10px] uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                      Knowledge Check
+                    </span>
+                    <h2 className="text-2xl font-black text-white leading-snug">{lesson.content}</h2>
                   </div>
                   <div className="grid gap-3 w-full">
                     {lesson.options?.map((option, i) => (
                       <button
                         key={i}
-                        onClick={() => setSelectedOption(i)}
-                        className={`group relative p-5 rounded-2xl border-2 transition-all duration-300 text-left font-bold ${selectedOption === i
+                        onClick={() => {
+                          if (selectedOption !== null) return;
+                          setSelectedOption(i);
+                          const outcome = i === lesson.correctAnswer ? "mcq_correct" : "mcq_wrong";
+                          void sendInteraction(lesson.id, outcome);
+                        }}
+                        className={`group relative p-4 rounded-xl border-2 transition-all duration-200 text-left font-semibold text-sm ${selectedOption === i
                           ? i === lesson.correctAnswer
-                            ? "bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                            : "bg-red-500/10 border-red-500 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                            ? "bg-emerald-500/10 border-emerald-500 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.1)]"
+                            : "bg-red-500/10 border-red-500 text-red-100 shadow-[0_0_20px_rgba(239,68,68,0.1)]"
                           : "border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 text-zinc-400 hover:text-white"
                           }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-lg">{option}</span>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selectedOption === i
+                        <div className="flex items-start gap-3">
+                          <div className={`mt-0.5 w-5 h-5 rounded-full border-[1.5px] flex-shrink-0 flex items-center justify-center transition-colors ${selectedOption === i
                             ? i === lesson.correctAnswer ? "border-emerald-500 bg-emerald-500" : "border-red-500 bg-red-500"
-                            : "border-white/20"
+                            : "border-white/20 group-hover:border-white/40"
                             }`}>
-                            {selectedOption === i && (
-                              <CheckCircle2 size={14} className="text-white" />
-                            )}
+                            {selectedOption === i && <CheckCircle2 size={12} className="text-white" />}
                           </div>
+                          <span className="flex-1 leading-relaxed">{option}</span>
                         </div>
                       </button>
                     ))}
@@ -242,14 +487,19 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
                   <AnimatePresence>
                     {selectedOption !== null && lesson.explanation && (
                       <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-6 rounded-2xl bg-white/5 border border-white/10 text-left"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="overflow-hidden"
                       >
-                        <p className="text-xs font-black uppercase tracking-widest text-blue-400 mb-2">Deep Dive</p>
-                        <p className="text-zinc-300 text-sm leading-relaxed font-medium">
-                          {lesson.explanation}
-                        </p>
+                        <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-left">
+                          <div className="flex items-center gap-2 mb-2 text-blue-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Feedback</span>
+                          </div>
+                          <p className="text-zinc-300 text-xs leading-relaxed font-medium">
+                            {lesson.explanation}
+                          </p>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -258,77 +508,60 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
             </motion.div>
           </AnimatePresence>
 
-          {/* Progress Bar */}
-          <div className="absolute top-8 left-8 right-8 flex gap-2 z-20">
-            {lessons.map((_, i) => (
-              <div
-                key={i}
-                className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden"
-              >
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: i <= index ? "100%" : "0%" }}
-                  className={`h-full ${i === index ? "bg-blue-500" : "bg-white/40"}`}
-                />
-              </div>
-            ))}
+          {/* Simple Progress Indicator */}
+          <div className="absolute top-8 left-0 right-0 z-20 flex justify-center pointer-events-none">
+            <div className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/5 shadow-xl">
+              <span className="text-[10px] font-medium text-white/50 tracking-widest">
+                LESSON <span className="text-white">{index + 1}</span>
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="w-20 flex flex-col items-center justify-end gap-6 py-12 z-30">
+        {/* Action Sidebar */}
+        <div className="w-16 flex flex-col items-center justify-end gap-6 py-8 z-30 mr-2">
           <button
             onClick={async () => {
               const newStatus = !liked;
               setLiked(newStatus);
-              try {
-                const res = await fetch('/api/interact', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ lessonId: lesson.id, type: 'like' })
-                });
-                if (res.status === 401) router.push('/auth');
-              } catch (e) { setLiked(!newStatus); }
+              void sendInteraction(lesson.id, "like", newStatus ? "POST" : "DELETE");
             }}
             className="flex flex-col items-center gap-1.5 group"
           >
             <motion.div
               whileTap={{ scale: 0.8 }}
-              className={`p-3.5 rounded-full backdrop-blur-md transition-all ${liked ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "bg-white/5 text-white/70 hover:bg-white/10"}`}
+              className={`p-3 rounded-full backdrop-blur-md transition-all ${liked ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"}`}
             >
-              <Heart size={26} className={liked ? "fill-current" : ""} />
+              <Heart size={22} className={liked ? "fill-current" : ""} />
             </motion.div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/70">Like</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white/30 group-hover:text-white/50">Like</span>
           </button>
 
-          <button className="flex flex-col items-center gap-1.5 group">
-            <div className="p-3.5 rounded-full bg-white/5 text-white/70 backdrop-blur-md hover:bg-white/10 transition-all">
-              <MessageCircle size={26} />
+          <button
+            onClick={() => setShowChat(true)}
+            className="flex flex-col items-center gap-1.5 group"
+          >
+            <div className="p-3 rounded-full bg-white/5 text-white/60 backdrop-blur-md hover:bg-white/10 hover:text-white transition-all">
+              <MessageCircle size={22} className={showChat ? "text-blue-400" : ""} />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/70">Ask</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white/30 group-hover:text-white/50">Ask</span>
           </button>
 
           <button
             onClick={async () => {
               const newStatus = !saved;
               setSaved(newStatus);
-              try {
-                const res = await fetch('/api/interact', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ lessonId: lesson.id, type: 'save' })
-                });
-                if (res.status === 401) router.push('/auth');
-              } catch (e) { setSaved(!newStatus); }
+              void sendInteraction(lesson.id, "save", newStatus ? "POST" : "DELETE");
             }}
             className="flex flex-col items-center gap-1.5 group"
           >
             <motion.div
               whileTap={{ scale: 0.8 }}
-              className={`p-3.5 rounded-full backdrop-blur-md transition-all ${saved ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-white/5 text-white/70 hover:bg-white/10"}`}
+              className={`p-3 rounded-full backdrop-blur-md transition-all ${saved ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"}`}
             >
-              <Bookmark size={26} className={saved ? "fill-current" : ""} />
+              <Bookmark size={22} className={saved ? "fill-current" : ""} />
             </motion.div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/70">Save</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white/30 group-hover:text-white/50">Save</span>
           </button>
 
           <button
@@ -338,33 +571,33 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
                 navigator.share({ title: 'Micro Lesson', text, url: window.location.href });
               } else {
                 navigator.clipboard.writeText(text);
-                alert('Copied link to clipboard!');
               }
             }}
             className="flex flex-col items-center gap-1.5 group"
           >
-            <div className="p-3.5 rounded-full bg-white/5 text-white/70 backdrop-blur-md hover:bg-white/10 transition-all">
-              <Share2 size={26} />
+            <div className="p-3 rounded-full bg-white/5 text-white/60 backdrop-blur-md hover:bg-white/10 hover:text-white transition-all">
+              <Share2 size={22} />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/70">Share</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white/30 group-hover:text-white/50">Share</span>
           </button>
 
-          <div className="w-10 h-px bg-white/10 my-2" />
+          <div className="w-8 h-px bg-white/10 my-1" />
 
-          <div className="flex flex-col gap-3">
+          {/* Navigation Controls */}
+          <div className="flex flex-col gap-2">
             <button
               onClick={prev}
               disabled={index === 0}
-              className="p-3 rounded-2xl bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-20 transition-all"
+              className="p-2.5 rounded-xl bg-white/5 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-20 transition-all"
             >
-              <ChevronUp size={24} />
+              <ChevronUp size={20} />
             </button>
             <button
               onClick={next}
-              disabled={index === lessons.length - 1}
-              className="p-3 rounded-2xl bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-20 transition-all"
+              disabled={index === lessons.length - 1 && !loadingMore}
+              className="p-2.5 rounded-xl bg-white/5 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-20 transition-all"
             >
-              <ChevronDown size={24} />
+              <ChevronDown size={20} />
             </button>
           </div>
         </div>

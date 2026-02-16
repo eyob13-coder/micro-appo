@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 5000",
+    "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p 5000",
+    "start": "next start -p 3000",
     "lint": "eslint"
   },
   "dependencies": {
@@ -20,8 +20,9 @@
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.28.1",
+    "gsap": "^3.14.2",
     "lucide-react": "^0.562.0",
-    "next": "16.1.4",
+    "next": "^16.1.6",
     "next-themes": "^0.4.6",
     "openai": "^6.21.0",
     "p-limit": "^7.3.0",
@@ -31,6 +32,7 @@
     "prisma": "^7.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "stripe": "^20.3.1",
     "tailwind-merge": "^3.4.0",
     "yt-search": "^2.13.1",
     "zod": "^4.3.6",
@@ -41,6 +43,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/yt-search": "^2.10.3",

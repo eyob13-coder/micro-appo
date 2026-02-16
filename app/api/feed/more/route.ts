@@ -1,21 +1,42 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/auth";
 import { generateLessonsFromText } from "@/lib/ai";
-// @ts-ignore - Dynamic import to avoid circular dependency issues during build
-import { lastExtractedText } from "@/app/api/upload/route";
-const yts = require("yt-search");
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import yts from "yt-search";
+import { buildAdaptiveLearningPrompt, getLearningProfileForUser } from "@/lib/learning";
 
 export async function GET() {
-    // In a real app, you'd fetch this from a DB using a session ID
-    // Here we use the in-memory variable from the upload route
-    if (!lastExtractedText || lastExtractedText.length < 50) {
-        return NextResponse.json({ error: "No PDF context found. Please upload a file first." }, { status: 400 });
-    }
-
     try {
+        // 1. Fetch latest source material (PDF text) from DB
+        const latestSource = await prisma.sourceMaterial.findFirst({
+            orderBy: { createdAt: 'desc' },
+        });
+
+        let textToProcess = latestSource?.content;
+        let personalizationPrompt = "";
+
+        const session = await auth.api.getSession({
+            headers: await headers()
+        });
+
+        if (session?.user) {
+            const profile = await getLearningProfileForUser(prisma, session.user.id);
+            personalizationPrompt = buildAdaptiveLearningPrompt(profile);
+        }
+
+        // Default fallback if no DB content
+        if (!textToProcess || textToProcess.length < 50) {
+            textToProcess = "Generate interesting facts about science, technology, and history.";
+        }
+
+        // Append adaptive personalization block if user profile exists
+        if (personalizationPrompt) {
+            textToProcess += personalizationPrompt;
+        }
+
         // Generate MORE lessons
-        // The AI is naturally non-deterministic, so calling it again produces new results
-        const lessons = await generateLessonsFromText(lastExtractedText);
+        const lessons = await generateLessonsFromText(textToProcess);
 
         // Enhance video lessons with real YouTube URLs (same logic as upload)
         for (const lesson of lessons) {
@@ -24,7 +45,7 @@ export async function GET() {
                 try {
                     const searchResults = await yts(query);
                     // Find a video < 4 minutes
-                    const video = searchResults.videos.find((v: any) => v.seconds < 240);
+                    const video = searchResults.videos.find((v) => v.seconds < 240);
                     if (video) {
                         lesson.videoUrl = video.url;
                         lesson.content = video.title;

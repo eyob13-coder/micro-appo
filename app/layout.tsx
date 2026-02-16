@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "MicroLearn - Study in Bites",
+  title: "Swipr - Study in Bites",
   description: "AI-powered micro-learning for the modern attention span.",
 };
 
