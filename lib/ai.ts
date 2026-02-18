@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { GoogleGenAI } from "@google/genai";
 
 export interface MicroLesson {
   id: string;
@@ -62,25 +61,15 @@ function readEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-const deepseekApiKey = readEnv("DEEPSEEK_API_KEY");
-const deepseekBaseUrl = readEnv("DEEPSEEK_BASE_URL") ?? "https://api.deepseek.com/v1";
-const openaiApiKey = readEnv("AI_INTEGRATIONS_OPENAI_API_KEY") ?? readEnv("OPENAI_API_KEY");
-const openaiBaseUrl = readEnv("AI_INTEGRATIONS_OPENAI_BASE_URL");
-
-const primaryProviderName = deepseekApiKey ? "DeepSeek" : "OpenAI";
-const primaryApiKey = deepseekApiKey ?? openaiApiKey;
-const primaryBaseUrl = deepseekApiKey ? deepseekBaseUrl : openaiBaseUrl;
+const OLLAMA_PROVIDER_NAME = "Ollama";
+const ollamaApiKey = readEnv("OLLAMA_API_KEY") ?? readEnv("OPENAI_API_KEY") ?? "ollama";
+const ollamaBaseUrl = readEnv("OLLAMA_BASE_URL") ?? readEnv("AI_INTEGRATIONS_OPENAI_BASE_URL") ?? "http://127.0.0.1:11434/v1";
+const OLLAMA_MODEL = readEnv("OLLAMA_MODEL") ?? readEnv("OPENAI_MODEL") ?? "llama3.1:8b";
 
 const openai = new OpenAI({
-  apiKey: primaryApiKey,
-  baseURL: primaryBaseUrl || undefined,
+  apiKey: ollamaApiKey,
+  baseURL: ollamaBaseUrl,
 });
-
-const geminiApiKey = readEnv("GEMINI_API_KEY");
-const gemini = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
-
-const PRIMARY_MODEL = readEnv("OPENAI_MODEL") ?? (deepseekApiKey ? "deepseek-chat" : "gpt-5.1");
-const GEMINI_MODEL = readEnv("GEMINI_MODEL") ?? "gemini-2.5-flash";
 
 function getErrorDetails(error: unknown): { status: number; code?: string; message: string } {
   const maybeError = error as { status?: number; code?: string; message?: string };
@@ -88,22 +77,6 @@ function getErrorDetails(error: unknown): { status: number; code?: string; messa
   const code = typeof maybeError.code === "string" ? maybeError.code : undefined;
   const message = typeof maybeError.message === "string" ? maybeError.message : "Unknown AI provider error";
   return { status, code, message };
-}
-
-function extractRetryAfterSeconds(message: string): number | undefined {
-  const messageMatch = message.match(/retry in\s+([\d.]+)s/i);
-  if (messageMatch?.[1]) {
-    const parsed = Number.parseFloat(messageMatch[1]);
-    if (!Number.isNaN(parsed) && parsed > 0) return Math.ceil(parsed);
-  }
-
-  const delayMatch = message.match(/"retryDelay"\s*:\s*"(\d+)s"/i);
-  if (delayMatch?.[1]) {
-    const parsed = Number.parseInt(delayMatch[1], 10);
-    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
-  }
-
-  return undefined;
 }
 
 function stripTrailingCommas(jsonStr: string): string {
@@ -305,17 +278,13 @@ function parseLessons(rawText: string): MicroLesson[] {
   }
 }
 
-async function generateWithOpenAI(truncatedText: string): Promise<string> {
-  if (!primaryApiKey) {
-    throw new AIServiceError(`${primaryProviderName} API key is missing.`, 503, "missing_api_key");
-  }
-
+async function generateWithOllama(truncatedText: string): Promise<string> {
   const maxRetries = 3;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await openai.chat.completions.create({
-        model: PRIMARY_MODEL,
+        model: OLLAMA_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `--- PDF CONTENT START ---\n${truncatedText}\n--- PDF CONTENT END ---` }
@@ -324,7 +293,7 @@ async function generateWithOpenAI(truncatedText: string): Promise<string> {
       });
       const rawText = response.choices?.[0]?.message?.content?.trim();
       if (!rawText) {
-        throw new AIServiceError(`${primaryProviderName} returned an empty response.`, 502);
+        throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} returned an empty response.`, 502);
       }
       return rawText;
     } catch (error: unknown) {
@@ -343,7 +312,7 @@ async function generateWithOpenAI(truncatedText: string): Promise<string> {
 
       if (isQuotaError) {
         throw new AIServiceError(
-          `${primaryProviderName} quota or balance exceeded. Add billing/credits, then retry.`,
+          `${OLLAMA_PROVIDER_NAME} request was rejected. Check your local model and Ollama server.`,
           status || 429,
           code
         );
@@ -351,57 +320,24 @@ async function generateWithOpenAI(truncatedText: string): Promise<string> {
 
       if (attempt < maxRetries) {
         if (!isRetryable) {
-          throw new AIServiceError(`${primaryProviderName} request failed. Check API key and model access.`, 400, code);
+          throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} request failed. Check model name and Ollama server URL.`, 400, code);
         }
         const delay = Math.pow(2, attempt) * 1000; // exponential backoff
-        console.log(`${primaryProviderName} API error. Retrying in ${delay}ms...`);
+        console.log(`${OLLAMA_PROVIDER_NAME} API error. Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         if (status === 429) {
-          throw new AIServiceError(`${primaryProviderName} rate limit hit. Please try again shortly.`, 429, code);
+          throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} rate limit hit. Please try again shortly.`, 429, code);
         }
         if (status >= 400 && status < 500) {
-          throw new AIServiceError(`${primaryProviderName} request failed. Check API key and model access.`, 400, code);
+          throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} request failed. Check model name and Ollama server URL.`, 400, code);
         }
-        throw new AIServiceError(`${primaryProviderName} service unavailable. Please try again.`, 503, code);
+        throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} service unavailable. Please try again.`, 503, code);
       }
     }
   }
 
   throw new AIServiceError("Failed to generate content after retries.", 503);
-}
-
-async function generateWithGemini(truncatedText: string): Promise<string> {
-  if (!gemini) {
-    throw new AIServiceError("Gemini fallback is not configured. Set GEMINI_API_KEY.", 503, "gemini_not_configured");
-  }
-
-  try {
-    const prompt = `${SYSTEM_PROMPT}\n\n--- PDF CONTENT START ---\n${truncatedText}\n--- PDF CONTENT END ---`;
-    const response = await gemini.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-    });
-
-    const rawText = response.text?.trim();
-    if (!rawText) {
-      throw new AIServiceError("Gemini returned an empty response.", 502, "empty_response");
-    }
-    return rawText;
-  } catch (error: unknown) {
-    const { status, code, message } = getErrorDetails(error);
-    const retryAfterSeconds = extractRetryAfterSeconds(message);
-    throw new AIServiceError(`Gemini fallback failed: ${message}`, status || 503, code ?? "gemini_error", retryAfterSeconds);
-  }
-}
-
-function shouldFallbackToGemini(error: AIServiceError): boolean {
-  return error.status === 400 || error.status === 402 || error.status === 429 || error.status === 503;
 }
 
 export async function generateLessonsFromText(text: string): Promise<MicroLesson[]> {
@@ -414,22 +350,11 @@ export async function generateLessonsFromText(text: string): Promise<MicroLesson
   let rawText: string;
 
   try {
-    rawText = await generateWithOpenAI(truncatedText);
+    rawText = await generateWithOllama(truncatedText);
   } catch (error: unknown) {
-    console.error(`[AI] ${primaryProviderName} failed:`, error);
-    if (error instanceof AIServiceError && gemini && shouldFallbackToGemini(error)) {
-      console.warn(`${primaryProviderName} failed (${error.status}${error.code ? `/${error.code}` : ""}). Falling back to Gemini.`);
-      try {
-        rawText = await generateWithGemini(truncatedText);
-      } catch (fallbackError: unknown) {
-        console.error("[AI] Gemini fallback failed:", fallbackError);
-        console.warn("[AI] Using local fallback lesson generation due to provider quota/unavailability.");
-        return buildLocalFallbackLessons(truncatedText);
-      }
-    } else {
-      console.warn("[AI] Using local fallback lesson generation.");
-      return buildLocalFallbackLessons(truncatedText);
-    }
+    console.error(`[AI] ${OLLAMA_PROVIDER_NAME} failed:`, error);
+    console.warn("[AI] Using local fallback lesson generation.");
+    return buildLocalFallbackLessons(truncatedText);
   }
 
   return parseLessons(rawText);
@@ -457,39 +382,18 @@ Please provide a concise, clear, and encouraging answer (max 3 sentences).
   };
 
   try {
-    if (primaryApiKey && (primaryProviderName === "DeepSeek" || primaryProviderName === "OpenAI")) {
-      const response = await openai.chat.completions.create({
-        model: PRIMARY_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 500,
-      });
-      rawText = response.choices?.[0]?.message?.content?.trim() || "";
-    } else {
-      throw new AIServiceError("Primary chat provider unavailable", 503);
-    }
+    const response = await openai.chat.completions.create({
+      model: OLLAMA_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      max_completion_tokens: 500,
+    });
+    rawText = response.choices?.[0]?.message?.content?.trim() || "";
   } catch (error: unknown) {
     const details = getErrorDetails(error);
-    const retryAfterSeconds = extractRetryAfterSeconds(details.message);
-    console.warn(`[AI] ${primaryProviderName} chat failed (${details.status}${details.code ? `/${details.code}` : ""}).`);
-
-    if (gemini) {
-      try {
-        const response = await gemini.models.generateContent({
-          model: GEMINI_MODEL,
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        });
-        rawText = response.text?.trim() || "";
-      } catch (geminiError: unknown) {
-        const geminiDetails = getErrorDetails(geminiError);
-        console.warn(
-          `[AI] Gemini chat failed (${geminiDetails.status}${geminiDetails.code ? `/${geminiDetails.code}` : ""})` +
-            `${retryAfterSeconds ? `; retry in ~${retryAfterSeconds}s` : ""}. Using local answer fallback.`
-        );
-        return buildLocalFallbackAnswer();
-      }
-    } else {
-      return buildLocalFallbackAnswer();
-    }
+    console.warn(
+      `[AI] ${OLLAMA_PROVIDER_NAME} chat failed (${details.status}${details.code ? `/${details.code}` : ""}). Using local answer fallback.`
+    );
+    return buildLocalFallbackAnswer();
   }
 
   return rawText || buildLocalFallbackAnswer();

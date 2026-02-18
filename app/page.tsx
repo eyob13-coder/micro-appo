@@ -245,17 +245,17 @@ const LandingPageContent = () => {
       >
         {/* Navigation */}
         <nav className="fixed top-0 w-full z-[100] transition-all duration-300">
-          <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
             <motion.div
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="flex items-center justify-between bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 px-6 py-3 rounded-full shadow-lg shadow-zinc-500/5"
+              className="flex items-center justify-between bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 px-3 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-zinc-500/5 gap-2"
             >
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
                   <Zap className="text-white fill-white" size={20} />
                 </div>
-                <span className="font-black text-2xl tracking-tighter">Swipr</span>
+                <span className="font-black text-lg sm:text-2xl tracking-tighter truncate">Swipr</span>
               </div>
 
               <div className="hidden md:flex items-center gap-8">
@@ -277,32 +277,19 @@ const LandingPageContent = () => {
                 ))}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <ThemeToggle />
                 {session?.user ? (
                   <a
                     href="/dashboard"
-                    className="flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all border border-zinc-200/50 dark:border-zinc-700/50 group"
+                    className="block text-xs sm:text-sm font-black px-3 sm:px-6 py-2 sm:py-2.5 rounded-full bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:scale-105 transition-transform active:scale-95 shadow-md shadow-zinc-500/10 whitespace-nowrap"
                   >
-                    {session.user.image ? (
-                      <img
-                        src={session.user.image}
-                        alt={session.user.name || ""}
-                        className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-black">
-                        {(session.user.name || session.user.email || "U").charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate max-w-[120px]">
-                      {session.user.name || "Dashboard"}
-                    </span>
+                    DASHBOARD
                   </a>
                 ) : (
                   <button
                     onClick={() => window.location.href = '/auth'}
-                    className="block text-sm font-black px-6 py-2.5 rounded-full bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:scale-105 transition-transform active:scale-95 shadow-md shadow-zinc-500/10"
+                    className="block text-xs sm:text-sm font-black px-3 sm:px-6 py-2 sm:py-2.5 rounded-full bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:scale-105 transition-transform active:scale-95 shadow-md shadow-zinc-500/10 whitespace-nowrap"
                   >
                     GET STARTED
                   </button>
@@ -313,7 +300,7 @@ const LandingPageContent = () => {
         </nav>
 
         {/* Hero Section */}
-        <section data-gsap-section data-gsap-panel data-gsap-hero-section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[90vh] flex items-center">
+        <section data-gsap-section data-gsap-panel data-gsap-hero-section className="relative pt-24 sm:pt-32 pb-14 sm:pb-20 px-4 sm:px-6 overflow-hidden min-h-[90vh] flex items-center">
           {/* Animated Background Gradients */}
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <motion.div
@@ -327,18 +314,18 @@ const LandingPageContent = () => {
           </div>
           <div data-gsap-hero-mask className="absolute inset-0 z-[1] bg-gradient-to-b from-white/70 via-white/20 to-transparent dark:from-zinc-900/70 dark:via-zinc-900/20 dark:to-transparent pointer-events-none" />
 
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
-            <div data-gsap-hero-copy className="space-y-8 text-left">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 sm:gap-16 items-center relative z-10">
+            <div data-gsap-hero-copy className="space-y-6 sm:space-y-8 text-left">
               <div
                 data-gsap-hero-chip
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 text-sm font-bold shadow-sm"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 text-xs sm:text-sm font-bold shadow-sm"
               >
                 <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 Revolutionizing Education
               </div>
 
               <h1
-                className="text-7xl md:text-8xl font-black tracking-tighter leading-[0.9] text-zinc-950 dark:text-white"
+                className="text-[2.55rem] min-[380px]:text-5xl md:text-8xl font-black tracking-tighter leading-[0.95] md:leading-[0.9] text-zinc-950 dark:text-white"
               >
                 <span className="inline-flex flex-wrap gap-x-3">
                   {["Don't", "Study."].map((word) => (
@@ -363,18 +350,18 @@ const LandingPageContent = () => {
 
               <p
                 data-gsap-hero-subtitle
-                className="text-xl md:text-2xl text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed font-medium"
+                className="text-base min-[380px]:text-lg md:text-2xl text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed font-medium"
               >
                 The world&apos;s first TikTok-style study app. Turn your boring lectures and PDFs into addictive, bite-sized micro-lessons.
               </p>
 
               <div
                 data-gsap-hero-actions
-                className="flex flex-col sm:flex-row items-center gap-4"
+                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"
               >
                 <button
                   onClick={() => setShowFeed(true)}
-                  className="group w-full sm:w-auto px-10 py-5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-black text-xl flex items-center justify-center gap-3 hover:scale-[1.05] active:scale-[0.98] transition-all shadow-2xl shadow-zinc-500/20"
+                  className="group w-full sm:w-auto px-6 sm:px-10 py-4 sm:py-5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-black text-base sm:text-xl flex items-center justify-center gap-2 sm:gap-3 hover:scale-[1.05] active:scale-[0.98] transition-all shadow-2xl shadow-zinc-500/20"
                 >
                   Start Now <ChevronRight className="group-hover:translate-x-1 transition-transform" />
                 </button>
@@ -424,7 +411,7 @@ const LandingPageContent = () => {
                     };
                     input.click();
                   }}
-                  className="w-full sm:w-auto flex items-center gap-3 px-8 py-5 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 font-bold text-lg bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm hover:border-blue-500 transition-colors cursor-pointer group"
+                  className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-3 px-6 sm:px-8 py-4 sm:py-5 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 font-bold text-base sm:text-lg bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm hover:border-blue-500 transition-colors cursor-pointer group"
                 >
                   <Upload size={22} className="text-zinc-400 group-hover:text-blue-500 transition-colors" />
                   <span>Upload PDF</span>
@@ -442,7 +429,7 @@ const LandingPageContent = () => {
               <Carousel
                 opts={{ loop: true }}
                 plugins={[heroCarouselAutoplay.current]}
-                className="relative z-10 rounded-[2.5rem] overflow-hidden border-8 border-white dark:border-zinc-900 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] aspect-[4/5] bg-zinc-100 dark:bg-zinc-800"
+              className="relative z-10 rounded-[1.75rem] sm:rounded-[2.5rem] overflow-hidden border-4 sm:border-8 border-white dark:border-zinc-900 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] aspect-[4/5] bg-zinc-100 dark:bg-zinc-800"
               >
                 <CarouselContent>
                   {[
@@ -469,14 +456,14 @@ const LandingPageContent = () => {
                         className="absolute inset-0 w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 via-transparent to-transparent" />
-                      <div className="absolute bottom-8 left-8 right-8 text-white">
+                      <div className="absolute bottom-5 left-5 right-5 sm:bottom-8 sm:left-8 sm:right-8 text-white">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
                             <Zap size={16} />
                           </div>
                           <span className="font-bold text-sm">Swipr AI</span>
                         </div>
-                        <h3 className="text-2xl font-bold">{slide.title}</h3>
+                        <h3 className="text-xl sm:text-2xl font-bold">{slide.title}</h3>
                         <p className="text-zinc-200 text-sm font-medium">{slide.subtitle}</p>
                       </div>
                     </CarouselItem>
@@ -487,7 +474,7 @@ const LandingPageContent = () => {
               {/* Floating Achievement Badge */}
               <motion.div
                 data-gsap-float-b
-                className="absolute -bottom-6 -right-6 p-4 rounded-2xl bg-white dark:bg-zinc-800 shadow-2xl border border-zinc-100 dark:border-zinc-700 z-20"
+                className="absolute -bottom-4 right-0 sm:-bottom-6 sm:-right-6 p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-800 shadow-2xl border border-zinc-100 dark:border-zinc-700 z-20"
               >
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
@@ -504,7 +491,7 @@ const LandingPageContent = () => {
         </section>
 
         {/* Method Section */}
-        <section id="method" data-gsap-section data-gsap-panel className="relative py-32 overflow-hidden bg-[linear-gradient(120deg,#f8fafc_0%,#eef2ff_45%,#e0f2fe_100%)] dark:bg-[linear-gradient(120deg,#0b1220_0%,#111827_45%,#0b2236_100%)]">
+        <section id="method" data-gsap-section data-gsap-panel className="relative py-20 sm:py-32 overflow-hidden bg-[linear-gradient(120deg,#f8fafc_0%,#eef2ff_45%,#e0f2fe_100%)] dark:bg-[linear-gradient(120deg,#0b1220_0%,#111827_45%,#0b2236_100%)]">
           <div className="absolute inset-0 pointer-events-none">
             <div
               data-gsap-method-flow-a
@@ -521,17 +508,17 @@ const LandingPageContent = () => {
             <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.08)_1px,transparent_0)] dark:[background-image:radial-gradient(circle_at_1px_1px,rgba(148,163,184,0.14)_1px,transparent_0)] [background-size:26px_26px]" />
           </div>
 
-          <div className="relative z-10 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-10 sm:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               className="space-y-8"
             >
-              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tight leading-tight">
                 Science-Backed <br />
                 <span className="text-blue-600">Micro-Learning.</span>
               </h2>
-              <p className="text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium">
+              <p className="text-base sm:text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium">
                 We apply the principles of spaced repetition and active recall to ensure maximum retention. By breaking down complex topics into atomic units, your brain processes information faster and remembers it longer.
               </p>
               <ul className="space-y-4">
@@ -571,7 +558,7 @@ const LandingPageContent = () => {
           data-gsap-section
           data-gsap-panel
           data-gsap-features-scroller
-          className="py-32 relative overflow-hidden bg-[linear-gradient(120deg,#fff7ed_0%,#fefce8_45%,#ecfeff_100%)] dark:bg-[linear-gradient(120deg,#111827_0%,#0f172a_45%,#042f2e_100%)]"
+          className="py-20 sm:py-32 relative overflow-hidden bg-[linear-gradient(120deg,#fff7ed_0%,#fefce8_45%,#ecfeff_100%)] dark:bg-[linear-gradient(120deg,#111827_0%,#0f172a_45%,#042f2e_100%)]"
         >
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -top-24 left-1/4 h-64 w-64 rounded-full bg-orange-300/30 dark:bg-orange-500/10 blur-3xl" />
@@ -579,9 +566,9 @@ const LandingPageContent = () => {
             <div className="absolute -bottom-24 right-1/4 h-72 w-72 rounded-full bg-cyan-300/25 dark:bg-cyan-500/10 blur-3xl" />
             <div className="absolute inset-0 opacity-35 [background-image:repeating-linear-gradient(115deg,rgba(15,23,42,0.06)_0,rgba(15,23,42,0.06)_1px,transparent_1px,transparent_20px)] dark:[background-image:repeating-linear-gradient(115deg,rgba(148,163,184,0.12)_0,rgba(148,163,184,0.12)_1px,transparent_1px,transparent_22px)]" />
           </div>
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
-            <div className="text-center max-w-2xl mx-auto mb-20 space-y-4">
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight">Engineered for Focus</h2>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+            <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-20 space-y-4">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight">Engineered for Focus</h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-lg">We didn&apos;t just build an app; we built a new way to interact with information.</p>
             </div>
             <div className="relative">
@@ -619,7 +606,7 @@ const LandingPageContent = () => {
                       data-gsap-feature-card
                       key={i}
                       whileHover={{ y: -10 }}
-                      className="group relative w-[82vw] sm:w-[66vw] lg:w-[38vw] xl:w-[32vw] min-h-[360px] md:min-h-[420px] p-8 rounded-[2rem] bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-2xl transition-all overflow-hidden snap-center"
+                      className="group relative w-[88vw] min-[420px]:w-[82vw] sm:w-[66vw] lg:w-[38vw] xl:w-[32vw] min-h-[300px] sm:min-h-[360px] md:min-h-[420px] p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-2xl transition-all overflow-hidden snap-center"
                     >
                       <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-70`} />
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_50%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_50%)]" />
@@ -628,8 +615,8 @@ const LandingPageContent = () => {
                           {feature.icon}
                         </div>
                         <div className="space-y-4">
-                          <h3 className="text-3xl font-black tracking-tight">{feature.title}</h3>
-                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed text-lg">
+                          <h3 className="text-2xl sm:text-3xl font-black tracking-tight">{feature.title}</h3>
+                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed text-base sm:text-lg">
                             {feature.desc}
                           </p>
                         </div>
@@ -644,16 +631,16 @@ const LandingPageContent = () => {
         </section>
 
         {/* Testimonials Section */}
-        <section id="testimonials" data-gsap-section data-gsap-panel className="py-32 bg-white dark:bg-zinc-950 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6 mb-20 text-center space-y-4">
+        <section id="testimonials" data-gsap-section data-gsap-panel className="py-20 sm:py-32 bg-white dark:bg-zinc-950 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12 sm:mb-20 text-center space-y-4">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              className="text-4xl md:text-6xl font-black tracking-tighter"
+              className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter"
             >
               Built for <span className="text-blue-600 dark:text-blue-400">Modern</span> Learners.
             </motion.h2>
-            <p className="text-zinc-500 dark:text-zinc-400 text-xl font-medium max-w-2xl mx-auto">
+            <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-xl font-medium max-w-2xl mx-auto">
               See how Swipr is designed to change how people study.
             </p>
           </div>
@@ -670,12 +657,12 @@ const LandingPageContent = () => {
                   { name: "Alex M.", role: "Law Student", text: "The AI extracts the most complex legal concepts into digestible bites. Incredible.", img: "/student-testimonial_2.jpg" },
                   { name: "David K.", role: "Engineering", text: "Quantum physics used to be a nightmare. Now it feels like a casual scroll.", img: "/student-testimonial_3.jpg" }
                 ].map((t, i) => (
-                  <div key={i} className="w-[450px] p-8 rounded-[2.5rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-6 shadow-sm hover:shadow-xl transition-shadow group-hover/row1:[animation-play-state:paused] whitespace-normal overflow-hidden">
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 border-4 border-white dark:border-zinc-800 shadow-lg">
+                  <div key={i} className="w-[88vw] sm:w-[450px] p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-4 sm:gap-6 shadow-sm hover:shadow-xl transition-shadow group-hover/row1:[animation-play-state:paused] whitespace-normal overflow-hidden">
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl overflow-hidden flex-shrink-0 border-4 border-white dark:border-zinc-800 shadow-lg">
                       <img src={t.img} alt={t.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <p className="text-base font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-3 break-words">"{t.text}"</p>
+                      <p className="text-sm sm:text-base font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-3 break-words">"{t.text}"</p>
                       <div className="min-w-0">
                         <h4 className="font-black text-blue-600 dark:text-blue-400 truncate">{t.name}</h4>
                         <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 truncate">{t.role}</p>
@@ -697,12 +684,12 @@ const LandingPageContent = () => {
                   { name: "Marcus L.", role: "Business Major", text: "I finished my entire semester review in one afternoon. Unbelievable.", img: "/student-testimonial_3.jpg" },
                   { name: "Jordan P.", role: "CompSci", text: "Best AI integration I've seen in education. Clean, fast, and effective.", img: "/student-testimonial_1.jpg" }
                 ].map((t, i) => (
-                  <div key={i} className="w-[450px] p-8 rounded-[2.5rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-6 shadow-sm hover:shadow-xl transition-shadow group-hover/row2:[animation-play-state:paused] whitespace-normal overflow-hidden">
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 border-4 border-white dark:border-zinc-800 shadow-lg">
+                  <div key={i} className="w-[88vw] sm:w-[450px] p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-4 sm:gap-6 shadow-sm hover:shadow-xl transition-shadow group-hover/row2:[animation-play-state:paused] whitespace-normal overflow-hidden">
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl overflow-hidden flex-shrink-0 border-4 border-white dark:border-zinc-800 shadow-lg">
                       <img src={t.img} alt={t.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <p className="text-base font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-3 break-words">"{t.text}"</p>
+                      <p className="text-sm sm:text-base font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-3 break-words">"{t.text}"</p>
                       <div className="min-w-0">
                         <h4 className="font-black text-purple-600 dark:text-purple-400 truncate">{t.name}</h4>
                         <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 truncate">{t.role}</p>
@@ -716,8 +703,8 @@ const LandingPageContent = () => {
         </section>
 
         {/* Organizations Marquee Section */}
-        <section data-gsap-section data-gsap-panel className="py-20 border-y border-zinc-100 dark:border-zinc-900 overflow-hidden bg-zinc-50/50 dark:bg-zinc-950/50">
-          <div className="max-w-7xl mx-auto px-6 mb-12">
+        <section data-gsap-section data-gsap-panel className="py-16 sm:py-20 border-y border-zinc-100 dark:border-zinc-900 overflow-hidden bg-zinc-50/50 dark:bg-zinc-950/50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8 sm:mb-12">
             <p className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400 text-center">Powering students at world-class institutions</p>
           </div>
 
@@ -727,7 +714,7 @@ const LandingPageContent = () => {
               <motion.div
                 animate={{ x: [0, -1000] }}
                 transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-                className="flex gap-12 items-center text-4xl md:text-5xl font-black text-zinc-200 dark:text-zinc-800 uppercase italic tracking-tighter select-none"
+                className="flex gap-8 sm:gap-12 items-center text-2xl sm:text-4xl md:text-5xl font-black text-zinc-200 dark:text-zinc-800 uppercase italic tracking-tighter select-none"
               >
                 {Array(10).fill(0).map((_, i) => (
                   <div key={i} className="flex gap-12">
@@ -751,7 +738,7 @@ const LandingPageContent = () => {
               <motion.div
                 animate={{ x: [-1000, 0] }}
                 transition={{ duration: 35, repeat: Infinity, ease: "linear" }}
-                className="flex gap-12 items-center text-4xl md:text-5xl font-black text-zinc-200 dark:text-zinc-800 uppercase italic tracking-tighter select-none"
+                className="flex gap-8 sm:gap-12 items-center text-2xl sm:text-4xl md:text-5xl font-black text-zinc-200 dark:text-zinc-800 uppercase italic tracking-tighter select-none"
               >
                 {Array(10).fill(0).map((_, i) => (
                   <div key={i} className="flex gap-12">
@@ -773,9 +760,9 @@ const LandingPageContent = () => {
         </section>
 
         {/* Footer */}
-        <footer data-gsap-panel className="pt-32 pb-16 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
+        <footer data-gsap-panel className="pt-20 sm:pt-32 pb-12 sm:pb-16 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-16 mb-14 sm:mb-20">
               <div className="col-span-1 md:col-span-1 space-y-6">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
