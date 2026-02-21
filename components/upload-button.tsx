@@ -30,6 +30,9 @@ export const UploadButton = () => {
                         // Persist generated lessons so landing page can hydrate feed immediately.
                         if (typeof window !== "undefined") {
                             sessionStorage.setItem("swipr_uploaded_lessons", JSON.stringify(data.lessons));
+                            sessionStorage.setItem("swipr_uploaded_source_id", data.sourceId ?? "");
+                            sessionStorage.setItem("swipr_uploaded_next_chunk_index", String(data.nextChunkIndex ?? 1));
+                            sessionStorage.setItem("swipr_uploaded_has_more", String(Boolean(data.hasMore)));
                         }
                         router.push('/?showFeed=true');
                     } else if (data.requireGoogleAuth) {

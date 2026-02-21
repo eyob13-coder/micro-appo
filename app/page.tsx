@@ -22,6 +22,7 @@ const LandingPageContent = () => {
   const heroCarouselAutoplay = useRef(Autoplay({ delay: 4000, stopOnInteraction: false }));
   const [showFeed, setShowFeed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [uploadedLessons, setUploadedLessons] = useState<any[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { data: session } = authClient.useSession();
@@ -53,6 +54,34 @@ const LandingPageContent = () => {
       sessionStorage.removeItem("microlearn_uploaded_lessons");
     }
   }, [mounted, searchParams]);
+
+  React.useEffect(() => {
+    if (!mounted) return;
+
+    let rafId = 0;
+    const updateProgress = () => {
+      const doc = document.documentElement;
+      const maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const current = Math.min(Math.max(window.scrollY / maxScroll, 0), 1);
+      setScrollProgress(current);
+      rafId = 0;
+    };
+
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(updateProgress);
+    };
+
+    updateProgress();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [mounted]);
 
   useLayoutEffect(() => {
     if (!mounted || !pageRef.current) return;
@@ -227,6 +256,8 @@ const LandingPageContent = () => {
         { x: -1500 },
         { x: 0, duration: 38, ease: "none", repeat: -1 }
       );
+
+      ScrollTrigger.refresh();
     }, pageRef);
 
     return () => {
@@ -235,7 +266,6 @@ const LandingPageContent = () => {
   }, [mounted]);
 
   if (!mounted) return null;
-
   return (
     <div ref={pageRef} className="relative min-h-screen bg-black/90 selection:bg-blue-500/30">
       <motion.div
@@ -243,6 +273,12 @@ const LandingPageContent = () => {
         transition={{ type: "spring", stiffness: 200, damping: 25 }}
         className="origin-top bg-white dark:bg-zinc-950 min-h-screen shadow-2xl overflow-hidden origin-center"
       >
+        <div className="fixed left-0 top-0 z-[130] h-1 w-full origin-left bg-transparent pointer-events-none">
+          <motion.div
+            style={{ scaleX: scrollProgress }}
+            className="h-full w-full origin-left bg-gradient-to-r from-blue-500 via-cyan-500 to-emerald-500 shadow-[0_0_20px_rgba(56,189,248,0.55)]"
+          />
+        </div>
         {/* Navigation */}
         <nav className="fixed top-0 w-full z-[100] transition-all duration-300">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
@@ -389,6 +425,12 @@ const LandingPageContent = () => {
                           });
                           const data = await res.json();
                           if (res.ok && data.lessons) {
+                            if (typeof window !== "undefined") {
+                              sessionStorage.setItem("swipr_uploaded_lessons", JSON.stringify(data.lessons));
+                              sessionStorage.setItem("swipr_uploaded_source_id", data.sourceId ?? "");
+                              sessionStorage.setItem("swipr_uploaded_next_chunk_index", String(data.nextChunkIndex ?? 1));
+                              sessionStorage.setItem("swipr_uploaded_has_more", String(Boolean(data.hasMore)));
+                            }
                             setUploadedLessons(data.lessons);
                             setShowFeed(true);
                           } else if (data.requireGoogleAuth) {
@@ -719,15 +761,10 @@ const LandingPageContent = () => {
                 {Array(10).fill(0).map((_, i) => (
                   <div key={i} className="flex gap-12">
                     <span>Stanford</span>
-                    <span className="text-blue-500/30">●</span>
                     <span>Harvard</span>
-                    <span className="text-blue-500/30">●</span>
                     <span>MIT</span>
-                    <span className="text-blue-500/30">●</span>
                     <span>Oxford</span>
-                    <span className="text-blue-500/30">●</span>
                     <span>Cambridge</span>
-                    <span className="text-blue-500/30">●</span>
                   </div>
                 ))}
               </motion.div>
@@ -743,15 +780,10 @@ const LandingPageContent = () => {
                 {Array(10).fill(0).map((_, i) => (
                   <div key={i} className="flex gap-12">
                     <span>ETH Zurich</span>
-                    <span className="text-purple-500/30">●</span>
                     <span>Berkeley</span>
-                    <span className="text-purple-500/30">●</span>
                     <span>UCL London</span>
-                    <span className="text-purple-500/30">●</span>
                     <span>Yale</span>
-                    <span className="text-purple-500/30">●</span>
                     <span>Princeton</span>
-                    <span className="text-purple-500/30">●</span>
                   </div>
                 ))}
               </motion.div>

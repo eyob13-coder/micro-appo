@@ -24,35 +24,88 @@ export class AIServiceError extends Error {
   }
 }
 
-const SYSTEM_PROMPT = `You are an expert educational content creator for a TikTok-style micro-learning app called Swipr.
+const SYSTEM_PROMPT = `
+You are an expert educator and curriculum designer.
 
-Given text from a PDF, generate a series of micro-lessons. Each lesson should be ONE of:
-1. **summary** — A single, punchy fact or insight (1-2 sentences max).
-2. **mcq** — A multiple-choice question with 4 options, one correct answer, and a brief explanation.
-3. **video** — A relevant short video topic (< 2 min).
+You are not summarizing.
+You are teaching.
 
-Rules:
-- Generate 6-10 lessons per batch
-- Start with a "video" lesson if the content is technical or visual
-- Alternate between types
-- For "video" type, set "videoUrl" to a specific YouTube search query (e.g., "biology cell structure animation under 2 minutes")
-- Keep language casual and engaging
+You will receive raw PDF text.
+Your task is to transform it into structured micro-lessons that help a learner actually understand and retain the material.
 
-Return ONLY valid JSON. Use this format:
+Core Principle:
+Each lesson must deliver insight, not just reword the text.
+If a lesson sounds like a simple sentence rewrite, improve it.
+
+LESSON TYPES (choose one per lesson):
+
+1. "summary"
+   - 1–2 sentences (15–40 words)
+   - Must explain a key idea clearly
+   - May clarify meaning or add brief interpretation
+   - Should make the idea easier to understand than the original text
+
+2. "mcq"
+   - Clear question ending with "?"
+   - Exactly 4 options
+   - One correctAnswer (0-based index)
+   - Distractors must be believable and based on nearby ideas
+   - explanation must explain WHY the answer is correct in 1–2 sentences
+
+3. "video"
+   - Reinforcement suggestion for complex or visual concepts
+   - content must hook the learner by naming the exact concept
+   - videoUrl must start with "SEARCH: " followed by a specific YouTube query ending with "under 2 minutes"
+
+STRICT RULES:
+
+- Generate 6–10 lessons.
+- Minimum 2 MCQs.
+- Follow the conceptual order of the text from beginning to end.
+- Do NOT skip ahead.
+- Do NOT invent facts not present in the text.
+- Do NOT use vague filler phrases.
+- Every lesson must reference real concepts from the provided text.
+- If the text explains a process, break it into steps across lessons.
+- If the text defines something, explain why it matters.
+- If the text compares ideas, highlight the difference clearly.
+
+QUALITY FILTER (VERY IMPORTANT):
+
+Before finalizing each lesson, silently ask:
+"Does this help someone understand better than the original sentence?"
+If not, improve it.
+
+OUTPUT RULES:
+
+Return ONLY valid JSON.
+No markdown.
+No commentary.
+No trailing commas.
+
+Use this structure:
+
 [
   {
     "id": "1",
-    "type": "video",
-    "content": "Watch this quick intro to [Topic]",
-    "videoUrl": "SEARCH: [Specific Search Query]"
+    "type": "summary",
+    "content": "Clear teaching explanation..."
   },
   {
     "id": "2",
-    "type": "summary",
-    "content": "Fact..."
-  },
-  ...
-]`;
+    "type": "mcq",
+    "content": "Question?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": 2,
+    "explanation": "Why this is correct..."
+  }
+]
+`;
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name];
@@ -61,14 +114,15 @@ function readEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-const OLLAMA_PROVIDER_NAME = "Ollama";
-const ollamaApiKey = readEnv("OLLAMA_API_KEY") ?? readEnv("OPENAI_API_KEY") ?? "ollama";
-const ollamaBaseUrl = readEnv("OLLAMA_BASE_URL") ?? readEnv("AI_INTEGRATIONS_OPENAI_BASE_URL") ?? "http://127.0.0.1:11434/v1";
-const OLLAMA_MODEL = readEnv("OLLAMA_MODEL") ?? readEnv("OPENAI_MODEL") ?? "llama3.1:8b";
+const AI_PROVIDER_NAME = "Gemini";
+const geminiApiKey = readEnv("GEMINI_API_KEY") ?? readEnv("GOOGLE_API_KEY") ?? readEnv("OPENAI_API_KEY");
+const geminiBaseUrl = readEnv("GEMINI_BASE_URL") ?? "https://generativelanguage.googleapis.com/v1beta/openai";
+const GEMINI_MODEL = readEnv("GEMINI_MODEL") ?? "gemini-2.0-flash";
+const GEMINI_TIMEOUT_MS = Number(readEnv("GEMINI_TIMEOUT_MS") ?? 25000);
 
 const openai = new OpenAI({
-  apiKey: ollamaApiKey,
-  baseURL: ollamaBaseUrl,
+  apiKey: geminiApiKey,
+  baseURL: geminiBaseUrl,
 });
 
 function getErrorDetails(error: unknown): { status: number; code?: string; message: string } {
@@ -170,6 +224,28 @@ function fallbackOptionsFromSentence(sentence: string): string[] {
   ];
 }
 
+function wordCount(text: string): number {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+const LOW_VALUE_PHRASES = [
+  "quick concept video",
+  "quick knowledge check",
+  "key takeaway",
+  "watch this quick intro",
+  "based on the uploaded pdf section",
+];
+
+function isLowValueContent(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return true;
+  if (wordCount(normalized) < 6) return true;
+  return LOW_VALUE_PHRASES.some((phrase) => normalized.includes(phrase));
+}
+
 function buildLocalFallbackLessons(text: string): MicroLesson[] {
   const sentences = text
     .replace(/\s+/g, " ")
@@ -229,6 +305,222 @@ function buildLocalFallbackLessons(text: string): MicroLesson[] {
   ];
 }
 
+function sentenceToTopic(sentence: string): string {
+  return sentence
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 3)
+    .slice(0, 7)
+    .join(" ")
+    .trim() || "core concept";
+}
+
+function buildRichFallbackLessonsFromPdf(text: string): MicroLesson[] {
+  const statements = extractPdfStatements(text);
+  const s1 = statements[0] ?? "This uploaded PDF introduces an important core concept.";
+  const s2 = statements[1] ?? "The PDF provides supporting details that explain how the concept works.";
+  const s3 = statements[2] ?? "The PDF connects the concept to a practical implication or outcome.";
+  const s4 = statements[3] ?? "The PDF highlights a key distinction that prevents common mistakes.";
+  const topic = sentenceToTopic(s1);
+
+  return [
+    {
+      id: "pdf-rich-1",
+      type: "video",
+      content: `Watch a short explainer to reinforce: ${s1}`,
+      videoUrl: `SEARCH: ${topic} explained under 2 minutes`,
+    },
+    { id: "pdf-rich-2", type: "summary", content: s1 },
+    {
+      id: "pdf-rich-3",
+      type: "mcq",
+      content: "Which statement is explicitly supported by the uploaded PDF section?",
+      options: [
+        s2,
+        `The PDF says this concept is irrelevant and can be ignored.`,
+        `The PDF states this idea only applies outside the discussed topic.`,
+        `The PDF claims the opposite conclusion without evidence.`,
+      ],
+      correctAnswer: 0,
+      explanation: "The first option is taken directly from the uploaded PDF context.",
+    },
+    { id: "pdf-rich-4", type: "summary", content: s3 },
+    {
+      id: "pdf-rich-5",
+      type: "mcq",
+      content: "According to the uploaded PDF, which takeaway best matches the material?",
+      options: [
+        s4,
+        `The PDF says there are no meaningful distinctions in this section.`,
+        `The PDF removes this concept from the main argument.`,
+        `The PDF concludes this concept is a historical footnote only.`,
+      ],
+      correctAnswer: 0,
+      explanation: "The first option matches a key statement from the uploaded PDF.",
+    },
+    {
+      id: "pdf-rich-6",
+      type: "summary",
+      content: `Together, these points show how the PDF builds from concept to application: ${s2}`,
+    },
+  ];
+}
+
+function extractPdfStatements(sourceText: string): string[] {
+  const statements = sourceText
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 25)
+    .map((line) => (line.length > 120 ? `${line.slice(0, 117)}...` : line));
+
+  if (statements.length >= 4) return statements;
+
+  const fallback = sourceText
+    .replace(/\s+/g, " ")
+    .split(/[,:;]\s+/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 20)
+    .map((line) => (line.length > 120 ? `${line.slice(0, 117)}...` : line));
+
+  const merged = [...statements, ...fallback];
+  if (merged.length >= 4) return merged;
+
+  return [
+    ...merged,
+    "The uploaded PDF introduces key concepts from this section.",
+    "The uploaded PDF explains details that support the main topic.",
+    "The uploaded PDF includes examples relevant to this concept.",
+    "The uploaded PDF connects this idea to practical understanding.",
+  ].slice(0, 4);
+}
+
+function buildPdfGroundedMcq(sourceText: string, ordinal: number, id: string): MicroLesson {
+  const statements = extractPdfStatements(sourceText);
+  const total = statements.length;
+  const start = total > 0 ? ordinal % total : 0;
+  const picked: string[] = [];
+
+  for (let offset = 0; offset < total && picked.length < 4; offset += 1) {
+    const candidate = statements[(start + offset) % total];
+    if (candidate && !picked.includes(candidate)) {
+      picked.push(candidate);
+    }
+  }
+
+  while (picked.length < 4) {
+    picked.push(`Uploaded PDF statement ${picked.length + 1} from this section.`);
+  }
+
+  const correctStatement = picked[0];
+  const topicSeed = correctStatement
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 3)
+    .slice(0, 4)
+    .join(" ")
+    .trim() || "this concept";
+
+  const questionTemplates = [
+    `What does the text indicate about ${topicSeed}?`,
+    `Which statement best explains ${topicSeed} according to the lesson?`,
+    `In this lesson, what is the most accurate takeaway about ${topicSeed}?`,
+    `Which option is directly supported by the material about ${topicSeed}?`,
+  ];
+  const question = questionTemplates[ordinal % questionTemplates.length];
+
+  return {
+    id,
+    type: "mcq",
+    content: question,
+    options: picked,
+    correctAnswer: 0,
+    explanation: `The correct option is directly stated in the material: "${correctStatement}"`,
+  };
+}
+
+function ensurePdfGroundedMcqs(lessons: MicroLesson[], sourceText: string): MicroLesson[] {
+  const normalized = lessons.map((lesson, idx) => ({
+    ...lesson,
+    id: lesson.id || String(idx + 1),
+  }));
+
+  let mcqOrdinal = 0;
+  const withGroundedMcq = normalized.map((lesson) => {
+    if (lesson.type !== "mcq") return lesson;
+    const hasValidOptions = Array.isArray(lesson.options) && lesson.options.length === 4;
+    const hasValidAnswer =
+      typeof lesson.correctAnswer === "number" && lesson.correctAnswer >= 0 && lesson.correctAnswer < 4;
+    const questionText = lesson.content.toLowerCase();
+    const isRoboticQuestion =
+      questionText.includes("based on the uploaded pdf section") ||
+      questionText.includes("appears earliest in the text");
+    const hasUsableQuestion = lesson.content.includes("?") && wordCount(lesson.content) >= 7 && !isRoboticQuestion;
+
+    if (hasValidOptions && hasValidAnswer && hasUsableQuestion) {
+      return lesson;
+    }
+
+    const grounded = buildPdfGroundedMcq(sourceText, mcqOrdinal, lesson.id);
+    mcqOrdinal += 1;
+    return grounded;
+  });
+
+  const minimumMcqCount = 2;
+  const currentMcqCount = withGroundedMcq.filter((lesson) => lesson.type === "mcq").length;
+  if (currentMcqCount >= minimumMcqCount) return withGroundedMcq;
+
+  const needed = minimumMcqCount - currentMcqCount;
+  const injected = [...withGroundedMcq];
+  for (let i = 0; i < needed; i += 1) {
+    const mcq = buildPdfGroundedMcq(sourceText, mcqOrdinal, `pdf-mcq-${injected.length + 1}`);
+    mcqOrdinal += 1;
+    const insertAt = Math.min(1 + i, injected.length);
+    injected.splice(insertAt, 0, mcq);
+  }
+
+  return injected;
+}
+
+function enforceLessonSubstance(lessons: MicroLesson[], sourceText: string): MicroLesson[] {
+  const statements = extractPdfStatements(sourceText);
+  let summaryCursor = 0;
+  let videoCursor = 0;
+
+  return lessons.map((lesson, i) => {
+    if (lesson.type === "summary") {
+      const content =
+        !isLowValueContent(lesson.content) && wordCount(lesson.content) >= 10
+          ? lesson.content
+          : statements[summaryCursor++ % statements.length];
+
+      return { ...lesson, id: lesson.id || String(i + 1), content };
+    }
+
+    if (lesson.type === "video") {
+      const anchor = statements[videoCursor++ % statements.length];
+      const content = isLowValueContent(lesson.content)
+        ? `Watch a short explainer to reinforce: ${anchor}`
+        : lesson.content;
+      const videoUrl = lesson.videoUrl?.trim()
+        ? lesson.videoUrl
+        : `SEARCH: ${sentenceToTopic(anchor)} explained under 2 minutes`;
+      return { ...lesson, id: lesson.id || String(i + 1), content, videoUrl };
+    }
+
+    if (lesson.type === "mcq") {
+      const hasValidQuestion = lesson.content.includes("?") && wordCount(lesson.content) >= 8;
+      const hasValidExplanation = typeof lesson.explanation === "string" && wordCount(lesson.explanation) >= 8;
+      if (hasValidQuestion && hasValidExplanation) {
+        return { ...lesson, id: lesson.id || String(i + 1) };
+      }
+      return buildPdfGroundedMcq(sourceText, i, lesson.id || String(i + 1));
+    }
+
+    return { ...lesson, id: lesson.id || String(i + 1) };
+  });
+}
+
 function parseLessons(rawText: string): MicroLesson[] {
   let cleaned = rawText
     .replace(/^```json\s*/i, "")
@@ -278,22 +570,32 @@ function parseLessons(rawText: string): MicroLesson[] {
   }
 }
 
-async function generateWithOllama(truncatedText: string): Promise<string> {
-  const maxRetries = 3;
+async function generateWithGemini(truncatedText: string): Promise<string> {
+  if (!geminiApiKey) {
+    throw new AIServiceError(`${AI_PROVIDER_NAME} API key is missing. Set GEMINI_API_KEY in your environment.`, 500, "missing_api_key");
+  }
+  const maxRetries = 2;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await openai.chat.completions.create({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `--- PDF CONTENT START ---\n${truncatedText}\n--- PDF CONTENT END ---` }
-        ],
-        max_completion_tokens: 2048,
-      });
+      const response = await Promise.race([
+        openai.chat.completions.create({
+          model: GEMINI_MODEL,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: `--- PDF CONTENT START ---\n${truncatedText}\n--- PDF CONTENT END ---` }
+          ],
+          max_completion_tokens: 900,
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new AIServiceError(`${AI_PROVIDER_NAME} request timed out.`, 504));
+          }, GEMINI_TIMEOUT_MS);
+        }),
+      ]);
       const rawText = response.choices?.[0]?.message?.content?.trim();
       if (!rawText) {
-        throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} returned an empty response.`, 502);
+        throw new AIServiceError(`${AI_PROVIDER_NAME} returned an empty response.`, 502);
       }
       return rawText;
     } catch (error: unknown) {
@@ -312,7 +614,7 @@ async function generateWithOllama(truncatedText: string): Promise<string> {
 
       if (isQuotaError) {
         throw new AIServiceError(
-          `${OLLAMA_PROVIDER_NAME} request was rejected. Check your local model and Ollama server.`,
+          `${AI_PROVIDER_NAME} request was rejected. Check your API key and project quota/billing.`,
           status || 429,
           code
         );
@@ -320,19 +622,19 @@ async function generateWithOllama(truncatedText: string): Promise<string> {
 
       if (attempt < maxRetries) {
         if (!isRetryable) {
-          throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} request failed. Check model name and Ollama server URL.`, 400, code);
+          throw new AIServiceError(`${AI_PROVIDER_NAME} request failed. Check Gemini model name and API configuration.`, 400, code);
         }
-        const delay = Math.pow(2, attempt) * 1000; // exponential backoff
-        console.log(`${OLLAMA_PROVIDER_NAME} API error. Retrying in ${delay}ms...`);
+        const delay = attempt * 1000;
+        console.log(`${AI_PROVIDER_NAME} API error. Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         if (status === 429) {
-          throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} rate limit hit. Please try again shortly.`, 429, code);
+          throw new AIServiceError(`${AI_PROVIDER_NAME} rate limit hit. Please try again shortly.`, 429, code);
         }
         if (status >= 400 && status < 500) {
-          throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} request failed. Check model name and Ollama server URL.`, 400, code);
+          throw new AIServiceError(`${AI_PROVIDER_NAME} request failed. Check Gemini model name and API configuration.`, 400, code);
         }
-        throw new AIServiceError(`${OLLAMA_PROVIDER_NAME} service unavailable. Please try again.`, 503, code);
+        throw new AIServiceError(`${AI_PROVIDER_NAME} service unavailable. Please try again.`, 503, code);
       }
     }
   }
@@ -342,7 +644,7 @@ async function generateWithOllama(truncatedText: string): Promise<string> {
 
 export async function generateLessonsFromText(text: string): Promise<MicroLesson[]> {
   // Truncate very long text to stay within token limits
-  const maxChars = 30000;
+  const maxChars = 10000;
   const truncatedText = text.length > maxChars
     ? text.substring(0, maxChars) + "\n\n[Content truncated for processing...]"
     : text;
@@ -350,14 +652,35 @@ export async function generateLessonsFromText(text: string): Promise<MicroLesson
   let rawText: string;
 
   try {
-    rawText = await generateWithOllama(truncatedText);
+    rawText = await generateWithGemini(truncatedText);
   } catch (error: unknown) {
-    console.error(`[AI] ${OLLAMA_PROVIDER_NAME} failed:`, error);
+    console.error(`[AI] ${AI_PROVIDER_NAME} failed:`, error);
     console.warn("[AI] Using local fallback lesson generation.");
-    return buildLocalFallbackLessons(truncatedText);
+    const richFallback = buildRichFallbackLessonsFromPdf(truncatedText);
+    const legacyFallback = buildLocalFallbackLessons(truncatedText);
+    const selectedFallback = richFallback.length >= 6 ? richFallback : legacyFallback;
+    return enforceLessonSubstance(
+      ensurePdfGroundedMcqs(selectedFallback, truncatedText),
+      truncatedText
+    );
   }
 
-  return parseLessons(rawText);
+  const parsed = parseLessons(rawText);
+  const grounded = ensurePdfGroundedMcqs(parsed, truncatedText);
+  const enriched = enforceLessonSubstance(grounded, truncatedText);
+  const substanceFailures = enriched.filter((lesson) => isLowValueContent(lesson.content)).length;
+
+  if (substanceFailures > Math.floor(enriched.length / 3)) {
+    const richFallback = buildRichFallbackLessonsFromPdf(truncatedText);
+    const legacyFallback = buildLocalFallbackLessons(truncatedText);
+    const selectedFallback = richFallback.length >= 6 ? richFallback : legacyFallback;
+    return enforceLessonSubstance(
+      ensurePdfGroundedMcqs(selectedFallback, truncatedText),
+      truncatedText
+    );
+  }
+
+  return enriched;
 }
 
 export async function generateAnswer(question: string, context: string): Promise<string> {
@@ -382,8 +705,11 @@ Please provide a concise, clear, and encouraging answer (max 3 sentences).
   };
 
   try {
+    if (!geminiApiKey) {
+      throw new AIServiceError(`${AI_PROVIDER_NAME} API key is missing. Set GEMINI_API_KEY in your environment.`, 500, "missing_api_key");
+    }
     const response = await openai.chat.completions.create({
-      model: OLLAMA_MODEL,
+      model: GEMINI_MODEL,
       messages: [{ role: "user", content: prompt }],
       max_completion_tokens: 500,
     });
@@ -391,7 +717,7 @@ Please provide a concise, clear, and encouraging answer (max 3 sentences).
   } catch (error: unknown) {
     const details = getErrorDetails(error);
     console.warn(
-      `[AI] ${OLLAMA_PROVIDER_NAME} chat failed (${details.status}${details.code ? `/${details.code}` : ""}). Using local answer fallback.`
+      `[AI] ${AI_PROVIDER_NAME} chat failed (${details.status}${details.code ? `/${details.code}` : ""}). Using local answer fallback.`
     );
     return buildLocalFallbackAnswer();
   }

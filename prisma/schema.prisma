@@ -21,6 +21,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   interactions  UserInteraction[]
+  sourceMaterials SourceMaterial[]
   
   isPro            Boolean   @default(false)
   uploadCount      Int       @default(0)
@@ -32,15 +33,21 @@ model User {
 
 model Lesson {
   id            String   @id @default(cuid())
+  sourceMaterialId String?
   type          String   // 'summary', 'mcq', 'video'
   content       String   @db.Text
   videoUrl      String?
   options       String[]
   correctAnswer Int?
   explanation   String?  @db.Text
+  chunkIndex    Int      @default(0)
+  sequence      Int      @default(0)
   createdAt     DateTime @default(now())
   
   interactions  UserInteraction[]
+  sourceMaterial SourceMaterial? @relation(fields: [sourceMaterialId], references: [id], onDelete: Cascade)
+
+  @@index([sourceMaterialId, sequence])
   
   @@map("lesson")
 }
@@ -106,9 +113,13 @@ model Verification {
 
 model SourceMaterial {
   id        String   @id @default(cuid())
+  userId    String?
   content   String   @db.Text
   createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+  
+  @@index([userId, createdAt])
   
   @@map("source_material")
 }
-

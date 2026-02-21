@@ -3,8 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import type { TouchEvent } from "react";
-import { Brain, CheckCircle2, ChevronDown, ChevronUp, Heart, Share2, Bookmark, MessageCircle, Play, Send, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Brain, CheckCircle2, ChevronDown, ChevronUp, Heart, Share2, Bookmark, MessageCircle, Send, X, Sparkles } from "lucide-react";
 
 interface MicroLesson {
   id: string;
@@ -81,6 +80,14 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
+  const [nextChunkIndex, setNextChunkIndex] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [scrollStreak, setScrollStreak] = useState(0);
+  const [showStreakToast, setShowStreakToast] = useState(false);
+  const [showBurst, setShowBurst] = useState(false);
+  const [xp, setXp] = useState(0);
+  const [rewardText, setRewardText] = useState<string | null>(null);
 
   // Chat State
   const [showChat, setShowChat] = useState(false);
@@ -92,7 +99,16 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
   const viewedLessonIdsRef = useRef<Set<string>>(new Set());
   const touchStartYRef = useRef<number | null>(null);
   const touchStartTimeRef = useRef<number | null>(null);
-  const router = useRouter();
+  const streakTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const burstTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rewardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hypeMessages = [
+    "Clean swipe.",
+    "Nice momentum.",
+    "Retention unlocked.",
+    "You are in flow.",
+    "Brain gains.",
+  ];
 
   const sendInteraction = async (
     lessonId: string,
@@ -113,18 +129,26 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
 
   useEffect(() => {
     // Trigger load more when user is 2 items away from end
-    if (index >= lessons.length - 2 && !loadingMore && lessons.length > 0) {
+    if (index >= lessons.length - 2 && !loadingMore && hasMore && lessons.length > 0) {
       loadMoreLessons();
     }
-  }, [index, lessons.length]);
+  }, [index, lessons.length, loadingMore, hasMore]);
 
   const loadMoreLessons = async () => {
-    if (loadingMore) return;
+    if (loadingMore || !activeSourceId || !hasMore) return;
     setLoadingMore(true);
     try {
-      const res = await fetch('/api/feed/more');
+      const res = await fetch(`/api/feed/more?sourceId=${encodeURIComponent(activeSourceId)}&chunkIndex=${nextChunkIndex}`);
       if (res.ok) {
-        const newLessons = await res.json();
+        const payload = await res.json();
+        const newLessons = Array.isArray(payload) ? payload : payload.lessons;
+        if (typeof payload?.nextChunkIndex === "number") {
+          setNextChunkIndex(payload.nextChunkIndex);
+        }
+        if (typeof payload?.hasMore === "boolean") {
+          setHasMore(payload.hasMore);
+        }
+
         // Append new lessons (filter out duplicates based on ID just in case)
         if (Array.isArray(newLessons) && newLessons.length > 0) {
           setLessons(prev => {
@@ -145,15 +169,42 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
     if (initialLessons && initialLessons.length > 0) {
       setLessons(initialLessons);
       setLoading(false);
+      if (typeof window !== "undefined") {
+        const sourceId = sessionStorage.getItem("swipr_uploaded_source_id");
+        const chunkIndexRaw = sessionStorage.getItem("swipr_uploaded_next_chunk_index");
+        const hasMoreRaw = sessionStorage.getItem("swipr_uploaded_has_more");
+
+        if (sourceId) setActiveSourceId(sourceId);
+        const parsedChunkIndex = Number(chunkIndexRaw ?? "0");
+        if (!Number.isNaN(parsedChunkIndex)) setNextChunkIndex(parsedChunkIndex);
+        if (hasMoreRaw === "false") setHasMore(false);
+      }
       return;
     }
 
     const fetchLessons = async () => {
       try {
-        const response = await fetch('/api/feed');
+        const storedSourceId =
+          typeof window !== "undefined" ? sessionStorage.getItem("swipr_uploaded_source_id") : null;
+        const url = storedSourceId
+          ? `/api/feed?sourceId=${encodeURIComponent(storedSourceId)}`
+          : "/api/feed";
+        const response = await fetch(url);
         if (response.ok) {
-          const data = await response.json();
-          setLessons(data);
+          const payload = await response.json();
+          const fetchedLessons = Array.isArray(payload) ? payload : payload.lessons;
+          setLessons(Array.isArray(fetchedLessons) ? fetchedLessons : defaultMockLessons);
+          if (!Array.isArray(payload)) {
+            if (typeof payload?.sourceId === "string" && payload.sourceId) {
+              setActiveSourceId(payload.sourceId);
+            }
+            if (typeof payload?.nextChunkIndex === "number") {
+              setNextChunkIndex(payload.nextChunkIndex);
+            }
+            if (typeof payload?.hasMore === "boolean") {
+              setHasMore(payload.hasMore);
+            }
+          }
         } else {
           setLessons(defaultMockLessons);
         }
@@ -178,6 +229,22 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
     }
   }, [index, lessons]);
 
+  useEffect(() => {
+    return () => {
+      if (streakTimeoutRef.current) clearTimeout(streakTimeoutRef.current);
+      if (burstTimeoutRef.current) clearTimeout(burstTimeoutRef.current);
+      if (rewardTimeoutRef.current) clearTimeout(rewardTimeoutRef.current);
+    };
+  }, []);
+
+  const triggerReward = (points: number) => {
+    setXp((prev) => prev + points);
+    const message = hypeMessages[Math.floor(Math.random() * hypeMessages.length)];
+    setRewardText(`+${points} XP  ${message}`);
+    if (rewardTimeoutRef.current) clearTimeout(rewardTimeoutRef.current);
+    rewardTimeoutRef.current = setTimeout(() => setRewardText(null), 900);
+  };
+
   const next = () => {
     const currentLesson = lessons[index];
     if (currentLesson) {
@@ -186,6 +253,18 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
     }
 
     if (index < lessons.length - 1) {
+      const nextStreak = scrollStreak + 1;
+      setScrollStreak(nextStreak);
+      triggerReward(8 + Math.min(nextStreak, 12));
+      if (nextStreak > 0 && nextStreak % 3 === 0) {
+        setShowStreakToast(true);
+        setShowBurst(true);
+        if (streakTimeoutRef.current) clearTimeout(streakTimeoutRef.current);
+        if (burstTimeoutRef.current) clearTimeout(burstTimeoutRef.current);
+        streakTimeoutRef.current = setTimeout(() => setShowStreakToast(false), 1400);
+        burstTimeoutRef.current = setTimeout(() => setShowBurst(false), 700);
+      }
+
       setIndex(i => i + 1);
       setSelectedOption(null);
       setLiked(false);
@@ -272,6 +351,9 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
   }
 
   if (!lesson) return null;
+  const feedProgress = Math.round(((index + 1) / Math.max(lessons.length, 1)) * 100);
+  const streakLabel =
+    scrollStreak < 3 ? "Warm Up" : scrollStreak < 6 ? "In Flow" : scrollStreak < 10 ? "Locked In" : "Beast Mode";
 
   return (
     <div className="relative w-full h-full md:h-[92vh] md:max-h-[940px] md:min-h-[760px] md:max-w-[900px] lg:max-w-[980px] mx-auto overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.8)] flex flex-col">
@@ -461,6 +543,7 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
                           if (selectedOption !== null) return;
                           setSelectedOption(i);
                           const outcome = i === lesson.correctAnswer ? "mcq_correct" : "mcq_wrong";
+                          triggerReward(i === lesson.correctAnswer ? 25 : 6);
                           void sendInteraction(lesson.id, outcome);
                         }}
                         className={`group relative p-4 rounded-xl border-2 transition-all duration-200 text-left font-semibold text-sm ${selectedOption === i
@@ -508,14 +591,82 @@ export const TikTokFeed = ({ initialLessons }: { initialLessons?: MicroLesson[] 
             </motion.div>
           </AnimatePresence>
 
-          {/* Simple Progress Indicator */}
+          <div className="absolute top-0 left-0 right-0 z-30 h-1 bg-white/5">
+            <motion.div
+              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500"
+              animate={{ width: `${feedProgress}%` }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            />
+          </div>
+
           <div className="absolute top-8 left-0 right-0 z-20 flex justify-center pointer-events-none">
-            <div className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/5 shadow-xl">
+            <div className="px-3 py-1.5 bg-black/45 backdrop-blur-md rounded-full border border-white/10 shadow-xl flex items-center gap-2">
               <span className="text-[10px] font-medium text-white/50 tracking-widest">
-                LESSON <span className="text-white">{index + 1}</span>
+                LESSON <span className="text-white">{index + 1}</span> / {lessons.length}
+              </span>
+              <span className="h-3 w-px bg-white/15" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">
+                {streakLabel}
+              </span>
+              <span className="h-3 w-px bg-white/15" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-300 flex items-center gap-1">
+                <Sparkles size={12} />
+                {xp} XP
               </span>
             </div>
           </div>
+
+          <AnimatePresence>
+            {showStreakToast && (
+              <motion.div
+                initial={{ y: -20, opacity: 0, scale: 0.95 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: -18, opacity: 0, scale: 0.96 }}
+                className="absolute top-16 right-4 z-40 px-4 py-2 rounded-2xl bg-emerald-500/15 border border-emerald-400/30 backdrop-blur-xl"
+              >
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">
+                  Streak x{scrollStreak}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {rewardText && (
+              <motion.div
+                initial={{ y: 16, opacity: 0, scale: 0.96 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: -12, opacity: 0, scale: 0.98 }}
+                className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-2xl bg-amber-500/15 border border-amber-400/30 backdrop-blur-xl"
+              >
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-amber-200">
+                  {rewardText}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {showBurst && (
+              <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <motion.div
+                    key={n}
+                    initial={{ x: 0, y: 0, opacity: 0.95, scale: 0.6 }}
+                    animate={{
+                      x: Math.cos((n / 6) * Math.PI * 2) * 90,
+                      y: Math.sin((n / 6) * Math.PI * 2) * 90,
+                      opacity: 0,
+                      scale: 1.15,
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.65, ease: "easeOut" }}
+                    className="absolute h-3 w-3 rounded-full bg-gradient-to-br from-cyan-300 via-violet-400 to-amber-300 shadow-[0_0_18px_rgba(56,189,248,0.75)]"
+                  />
+                ))}
+              </div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Action Sidebar */}

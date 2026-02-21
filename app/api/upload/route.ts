@@ -4,6 +4,7 @@ import pdf from "pdf-parse";
 import { AIServiceError, generateLessonsFromText } from "@/lib/ai";
 import { auth, prisma } from "@/lib/auth";
 import yts from "yt-search";
+import { splitPdfTextIntoChunks } from "@/lib/pdf-sequence";
 
 const FREE_MAX_FILE_SIZE_MB = 60;
 const PRO_MAX_FILE_SIZE_MB = 200;
@@ -94,11 +95,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const source = await prisma.sourceMaterial.create({
+      data: {
+        content: extractedText,
+        user: {
+          connect: { id: session.user.id },
+        },
+      },
+    });
+
+    const chunks = splitPdfTextIntoChunks(extractedText);
+    const firstChunk = chunks[0] ?? extractedText;
+
     // Generate micro-lessons with in-flight dedupe (prevents duplicate parallel uploads from same user/file)
     const uploadKey = `${session.user.id}:${file.name}:${file.size}:${file.lastModified}`;
     let generationPromise = inflightUploads.get(uploadKey);
     if (!generationPromise) {
-      generationPromise = generateLessonsFromText(extractedText);
+      generationPromise = generateLessonsFromText(firstChunk);
       inflightUploads.set(uploadKey, generationPromise);
     }
     let lessons;
@@ -108,44 +121,42 @@ export async function POST(request: NextRequest) {
       inflightUploads.delete(uploadKey);
     }
 
-    // Replace video placeholders with real YouTube URLs
-    for (const lesson of lessons) {
-      if (lesson.type === "video" && lesson.videoUrl?.startsWith("SEARCH:")) {
-        const query = lesson.videoUrl.replace("SEARCH:", "").trim();
-        try {
-          const searchResults = await yts(query);
-          const video = searchResults.videos.find((v: { seconds: number }) => v.seconds < 240); // < 4 min
-          if (video) {
-            lesson.videoUrl = video.url;
-            lesson.content = video.title;
-          } else {
-            lesson.videoUrl = searchResults.videos[0]?.url || "";
+    // Replace video placeholders with real YouTube URLs in parallel to reduce total latency
+    await Promise.all(
+      lessons.map(async (lesson) => {
+        if (lesson.type === "video" && lesson.videoUrl?.startsWith("SEARCH:")) {
+          const query = lesson.videoUrl.replace("SEARCH:", "").trim();
+          try {
+            const searchResults = await yts(query);
+            const video = searchResults.videos.find((v: { seconds: number }) => v.seconds < 240); // < 4 min
+            if (video) {
+              lesson.videoUrl = video.url;
+              lesson.content = video.title;
+            } else {
+              lesson.videoUrl = searchResults.videos[0]?.url || "";
+            }
+          } catch (e) {
+            console.error(`Failed to search video for query "${query}":`, e);
+            lesson.videoUrl = "";
           }
-        } catch (e) {
-          console.error(`Failed to search video for query "${query}":`, e);
-          lesson.videoUrl = "";
         }
-      }
-    }
-
-    // Store for feed endpoint - persisted in DB
-    await prisma.sourceMaterial.create({
-      data: {
-        content: extractedText,
-      },
-    });
+      })
+    );
 
     // Persist lessons to database
     const savedLessons = await Promise.all(
-      lessons.map(async (lesson) =>
+      lessons.map(async (lesson, idx) =>
         prisma.lesson.create({
           data: {
+            sourceMaterialId: source.id,
             type: lesson.type,
             content: lesson.content,
             videoUrl: lesson.videoUrl,
             options: lesson.options || [],
             correctAnswer: lesson.correctAnswer,
             explanation: lesson.explanation,
+            chunkIndex: 0,
+            sequence: idx + 1,
           },
         })
       )
@@ -157,7 +168,13 @@ export async function POST(request: NextRequest) {
       data: { uploadCount: { increment: 1 } }
     });
 
-    return NextResponse.json({ lessons: savedLessons, pageCount: pdfData.numpages });
+    return NextResponse.json({
+      lessons: savedLessons,
+      pageCount: pdfData.numpages,
+      sourceId: source.id,
+      nextChunkIndex: 1,
+      hasMore: chunks.length > 1,
+    });
   } catch (error: unknown) {
     console.error("Upload error:", error);
     if (error instanceof AIServiceError) {

@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 function AuthPageContent() {
@@ -18,6 +18,17 @@ function AuthPageContent() {
   const searchParams = useSearchParams();
   const callbackURL = searchParams.get("callbackURL") || "/dashboard";
 
+  const getErrorMessage = (err: unknown, fallback: string) => {
+    if (err instanceof Error && err.message) return err.message;
+    if (typeof err === "object" && err !== null && "message" in err) {
+      const maybeMessage = (err as { message?: unknown }).message;
+      if (typeof maybeMessage === "string" && maybeMessage.trim().length > 0) {
+        return maybeMessage;
+      }
+    }
+    return fallback;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -25,22 +36,22 @@ function AuthPageContent() {
 
     try {
       if (isSignUp) {
-        const { data, error } = await authClient.signUp.email({
+        const { error } = await authClient.signUp.email({
           email,
           password,
           name,
         });
         if (error) throw error;
       } else {
-        const { data, error } = await authClient.signIn.email({
+        const { error } = await authClient.signIn.email({
           email,
           password,
         });
         if (error) throw error;
       }
       router.push(callbackURL);
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Authentication failed"));
     } finally {
       setIsLoading(false);
     }
@@ -52,34 +63,91 @@ function AuthPageContent() {
     try {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL
+        callbackURL,
       });
-    } catch (err: any) {
-      setError(err.message || "Google Sign In failed");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Google Sign In failed"));
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,#1d4ed8_0%,#0a0a0a_40%,#020617_100%)] text-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan-500/20 blur-3xl" />
+        <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
+        <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_1px_1px,rgba(148,163,184,0.16)_1px,transparent_0)] [background-size:24px_24px]" />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md space-y-8"
+        className="relative z-10 mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 items-center gap-8 px-4 py-8 md:grid-cols-2 md:px-8"
       >
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/20 mb-4">
-            <Sparkles className="text-white" size={24} />
+        <div className="hidden md:block">
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
+              <Sparkles size={14} />
+              AI Learning OS
+            </div>
+            <div className="space-y-4">
+              <h1 className="text-5xl font-black tracking-tight leading-[0.95]">
+                Learn Like a
+                <br />
+                <span className="bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300 bg-clip-text text-transparent">
+                  Scroll Addict
+                </span>
+              </h1>
+              <p className="max-w-md text-zinc-300">
+                Upload your PDFs and turn them into short, addictive lessons with built-in recall checks.
+              </p>
+            </div>
+            <div className="grid max-w-md gap-3">
+              {[
+                "Bite-sized summaries generated from your material",
+                "MCQs mixed in for active recall and retention",
+                "Feed-style flow designed for momentum",
+              ].map((item) => (
+                <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-200 backdrop-blur-sm">
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight">{isSignUp ? "Create Account" : "Welcome Back"}</h1>
-          <p className="text-zinc-400">
-            {isSignUp ? "Join to save your learning progress" : "Sign in to access your dashboard"}
-          </p>
         </div>
 
-        <div className="space-y-4 bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 backdrop-blur-sm">
+        <div className="mx-auto w-full max-w-md space-y-6 rounded-3xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_24px_64px_-20px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+          <div className="space-y-4 text-center">
+            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-500 shadow-lg shadow-blue-500/20">
+              <Sparkles className="text-white" size={24} />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-3xl font-black tracking-tight">{isSignUp ? "Create Account" : "Welcome Back"}</h2>
+              <p className="text-sm text-zinc-400">
+                {isSignUp ? "Start your AI micro-learning journey." : "Sign in to continue your learning streak."}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-zinc-950/70 p-1">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(false)}
+                className={`rounded-lg py-2 text-sm font-bold transition-colors ${!isSignUp ? "bg-blue-500 text-white" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSignUp(true)}
+                className={`rounded-lg py-2 text-sm font-bold transition-colors ${isSignUp ? "bg-blue-500 text-white" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
+
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-medium">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm font-medium text-red-300">
               {error}
             </div>
           )}
@@ -87,7 +155,7 @@ function AuthPageContent() {
           <button
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="w-full py-4 bg-white hover:bg-zinc-100 text-zinc-950 font-bold rounded-xl transition-all shadow-lg shadow-white/10 disabled:opacity-50 flex items-center justify-center gap-3"
+            className="flex w-full items-center justify-center gap-3 rounded-xl bg-white py-4 font-bold text-zinc-950 shadow-lg shadow-white/10 transition-all hover:bg-zinc-100 disabled:opacity-50"
           >
             {isLoading ? <Loader2 className="animate-spin" size={20} /> : (
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -112,10 +180,10 @@ function AuthPageContent() {
             Continue with Google
           </button>
 
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-zinc-800"></div>
-            <span className="flex-shrink-0 mx-4 text-zinc-500 text-xs uppercase font-bold tracking-widest">Or continue with email</span>
-            <div className="flex-grow border-t border-zinc-800"></div>
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-zinc-800" />
+            <span className="mx-4 flex-shrink-0 text-xs font-bold uppercase tracking-widest text-zinc-500">Or continue with email</span>
+            <div className="flex-grow border-t border-zinc-800" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -126,7 +194,7 @@ function AuthPageContent() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-950 rounded-xl border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   placeholder="John Doe"
                   required
                 />
@@ -139,7 +207,7 @@ function AuthPageContent() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-950 rounded-xl border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder="hello@example.com"
                 required
               />
@@ -151,7 +219,7 @@ function AuthPageContent() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-950 rounded-xl border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder="••••••••"
                 required
               />
@@ -160,27 +228,27 @@ function AuthPageContent() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500 disabled:opacity-50"
             >
               {isLoading && <Loader2 className="animate-spin" size={20} />}
               {isSignUp ? "Create Account" : "Sign In"}
             </button>
           </form>
+
+          <p className="text-center text-sm text-zinc-500">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="font-medium text-blue-400 hover:underline"
+            >
+              {isSignUp ? "Sign In" : "Sign Up"}
+            </button>
+          </p>
+
+          <Link href="/" className="block text-center text-sm text-zinc-500 transition-colors hover:text-zinc-300">
+            &larr; Back to Home
+          </Link>
         </div>
-
-        <p className="text-center text-sm text-zinc-500">
-          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-blue-500 hover:underline font-medium"
-          >
-            {isSignUp ? "Sign In" : "Sign Up"}
-          </button>
-        </p>
-
-        <Link href="/" className="block text-center text-sm text-zinc-600 hover:text-zinc-400 transition-colors">
-          ← Back to Home
-        </Link>
       </motion.div>
     </div>
   );
@@ -193,3 +261,4 @@ export default function AuthPage() {
     </Suspense>
   );
 }
+

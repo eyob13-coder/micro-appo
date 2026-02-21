@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth, prisma } from "@/lib/auth";
-import { getLearningProfileForUser } from "@/lib/learning";
+import { splitPdfTextIntoChunks } from "@/lib/pdf-sequence";
 
 // Default fallback lessons if no PDF has been uploaded yet
 const defaultLessons = [
@@ -35,47 +35,48 @@ const defaultLessons = [
     },
 ];
 
-function scoreLesson(
-    content: string,
-    preferredTopics: string[],
-    weakTopics: string[]
-): number {
-    const lower = content.toLowerCase();
-    let score = 0;
-
-    for (const topic of preferredTopics) {
-        if (lower.includes(topic.toLowerCase())) score += 3;
-    }
-    for (const topic of weakTopics) {
-        if (lower.includes(topic.toLowerCase())) score += 2;
-    }
-
-    return score;
-}
-
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const session = await auth.api.getSession({
-            headers: await headers()
+            headers: await headers(),
         });
 
-        const lessons = await prisma.lesson.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 100
-        });
-
-        if (session?.user && lessons.length > 0) {
-            const profile = await getLearningProfileForUser(prisma, session.user.id);
-            const ranked = [...lessons].sort((a, b) => {
-                const scoreA = scoreLesson(a.content, profile.preferredTopics, profile.dueReviewTopics);
-                const scoreB = scoreLesson(b.content, profile.preferredTopics, profile.dueReviewTopics);
-                return scoreB - scoreA;
-            });
-            return NextResponse.json(ranked.slice(0, 20));
+        if (!session?.user) {
+            return NextResponse.json(defaultLessons);
         }
 
+        const { searchParams } = new URL(request.url);
+        const requestedSourceId = searchParams.get("sourceId");
+
+        const source = requestedSourceId
+            ? await prisma.sourceMaterial.findFirst({
+                where: { id: requestedSourceId, userId: session.user.id },
+            })
+            : await prisma.sourceMaterial.findFirst({
+                where: { userId: session.user.id },
+                orderBy: { createdAt: "desc" },
+            });
+
+        if (!source) {
+            return NextResponse.json(defaultLessons);
+        }
+
+        const lessons = await prisma.lesson.findMany({
+            where: { sourceMaterialId: source.id },
+            orderBy: { sequence: "asc" },
+            take: 20,
+        });
+
         if (lessons.length > 0) {
-            return NextResponse.json(lessons.slice(0, 20));
+            const chunks = splitPdfTextIntoChunks(source.content);
+            const maxChunk = lessons.reduce((max, lesson) => Math.max(max, lesson.chunkIndex ?? 0), -1);
+            const nextChunkIndex = maxChunk + 1;
+            return NextResponse.json({
+                lessons,
+                sourceId: source.id,
+                nextChunkIndex,
+                hasMore: nextChunkIndex < chunks.length,
+            });
         }
     } catch (error) {
         console.error("Failed to fetch lessons:", error);

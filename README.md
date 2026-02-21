@@ -59,7 +59,7 @@ App auto-updates as you save files.
 - **TailwindCSS** (Styling)
 - **Zustand** (State management)
 - **Prisma** (Database)
-- **Ollama (OpenAI-compatible API)** (AI lesson generation)
+- **Google Gemini API** (AI lesson generation)
 - **Vercel** (Hosting recommended)
 
 ---
