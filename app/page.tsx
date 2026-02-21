@@ -336,7 +336,7 @@ const LandingPageContent = () => {
         </nav>
 
         {/* Hero Section */}
-        <section data-gsap-section data-gsap-panel data-gsap-hero-section className="relative pt-24 sm:pt-32 pb-14 sm:pb-20 px-4 sm:px-6 overflow-hidden min-h-[90vh] flex items-center">
+        <section data-gsap-section data-gsap-panel data-gsap-hero-section className="relative pt-20 min-[380px]:pt-24 sm:pt-32 pb-10 sm:pb-20 px-4 sm:px-6 overflow-hidden min-h-[82vh] sm:min-h-[90vh] flex items-center">
           {/* Animated Background Gradients */}
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <motion.div
@@ -350,18 +350,18 @@ const LandingPageContent = () => {
           </div>
           <div data-gsap-hero-mask className="absolute inset-0 z-[1] bg-gradient-to-b from-white/70 via-white/20 to-transparent dark:from-zinc-900/70 dark:via-zinc-900/20 dark:to-transparent pointer-events-none" />
 
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 sm:gap-16 items-center relative z-10">
-            <div data-gsap-hero-copy className="space-y-6 sm:space-y-8 text-left">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 sm:gap-16 items-start lg:items-center relative z-10">
+            <div data-gsap-hero-copy className="space-y-5 sm:space-y-8 text-left">
               <div
                 data-gsap-hero-chip
-                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 text-xs sm:text-sm font-bold shadow-sm"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 text-[11px] min-[380px]:text-xs sm:text-sm font-bold shadow-sm"
               >
                 <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 Revolutionizing Education
               </div>
 
               <h1
-                className="text-[2.55rem] min-[380px]:text-5xl md:text-8xl font-black tracking-tighter leading-[0.95] md:leading-[0.9] text-zinc-950 dark:text-white"
+                className="text-[2.2rem] min-[360px]:text-[2.45rem] min-[420px]:text-5xl md:text-8xl font-black tracking-tighter leading-[0.98] md:leading-[0.9] text-zinc-950 dark:text-white"
               >
                 <span className="inline-flex flex-wrap gap-x-3">
                   {["Don't", "Study."].map((word) => (
@@ -386,7 +386,7 @@ const LandingPageContent = () => {
 
               <p
                 data-gsap-hero-subtitle
-                className="text-base min-[380px]:text-lg md:text-2xl text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed font-medium"
+                className="text-sm min-[380px]:text-base sm:text-lg md:text-2xl text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed font-medium"
               >
                 The world&apos;s first TikTok-style study app. Turn your boring lectures and PDFs into addictive, bite-sized micro-lessons.
               </p>
@@ -397,7 +397,7 @@ const LandingPageContent = () => {
               >
                 <button
                   onClick={() => setShowFeed(true)}
-                  className="group w-full sm:w-auto px-6 sm:px-10 py-4 sm:py-5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-black text-base sm:text-xl flex items-center justify-center gap-2 sm:gap-3 hover:scale-[1.05] active:scale-[0.98] transition-all shadow-2xl shadow-zinc-500/20"
+                  className="group w-full sm:w-auto px-5 sm:px-10 py-3.5 sm:py-5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-black text-sm min-[380px]:text-base sm:text-xl flex items-center justify-center gap-2 sm:gap-3 hover:scale-[1.05] active:scale-[0.98] transition-all shadow-2xl shadow-zinc-500/20"
                 >
                   Start Now <ChevronRight className="group-hover:translate-x-1 transition-transform" />
                 </button>
@@ -453,7 +453,7 @@ const LandingPageContent = () => {
                     };
                     input.click();
                   }}
-                  className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-3 px-6 sm:px-8 py-4 sm:py-5 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 font-bold text-base sm:text-lg bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm hover:border-blue-500 transition-colors cursor-pointer group"
+                  className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-3 px-5 sm:px-8 py-3.5 sm:py-5 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 font-bold text-sm min-[380px]:text-base sm:text-lg bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm hover:border-blue-500 transition-colors cursor-pointer group"
                 >
                   <Upload size={22} className="text-zinc-400 group-hover:text-blue-500 transition-colors" />
                   <span>Upload PDF</span>
@@ -466,12 +466,12 @@ const LandingPageContent = () => {
 
             <div
               data-gsap-hero-visual
-              className="relative"
+              className="relative mx-auto w-full max-w-[320px] min-[380px]:max-w-[360px] sm:max-w-[440px] lg:max-w-none"
             >
               <Carousel
                 opts={{ loop: true }}
                 plugins={[heroCarouselAutoplay.current]}
-              className="relative z-10 rounded-[1.75rem] sm:rounded-[2.5rem] overflow-hidden border-4 sm:border-8 border-white dark:border-zinc-900 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] aspect-[4/5] bg-zinc-100 dark:bg-zinc-800"
+              className="relative z-10 rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden border-2 sm:border-8 border-white dark:border-zinc-900 shadow-[0_35px_80px_-30px_rgba(0,0,0,0.35)] aspect-[4/5] bg-zinc-100 dark:bg-zinc-800"
               >
                 <CarouselContent>
                   {[
@@ -516,7 +516,7 @@ const LandingPageContent = () => {
               {/* Floating Achievement Badge */}
               <motion.div
                 data-gsap-float-b
-                className="absolute -bottom-4 right-0 sm:-bottom-6 sm:-right-6 p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-800 shadow-2xl border border-zinc-100 dark:border-zinc-700 z-20"
+                className="absolute -bottom-3 right-2 sm:-bottom-6 sm:-right-6 p-2.5 sm:p-4 rounded-2xl bg-white dark:bg-zinc-800 shadow-2xl border border-zinc-100 dark:border-zinc-700 z-20 scale-90 min-[380px]:scale-100"
               >
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
@@ -673,21 +673,21 @@ const LandingPageContent = () => {
         </section>
 
         {/* Testimonials Section */}
-        <section id="testimonials" data-gsap-section data-gsap-panel className="py-20 sm:py-32 bg-white dark:bg-zinc-950 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12 sm:mb-20 text-center space-y-4">
+        <section id="testimonials" data-gsap-section data-gsap-panel className="py-12 sm:py-16 lg:py-20 bg-white dark:bg-zinc-950 overflow-hidden">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-8 sm:mb-10 text-center space-y-3">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter"
+              className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tighter"
             >
               Built for <span className="text-blue-600 dark:text-blue-400">Modern</span> Learners.
             </motion.h2>
-            <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-xl font-medium max-w-2xl mx-auto">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-lg font-medium max-w-xl mx-auto">
               See how Swipr is designed to change how people study.
             </p>
           </div>
 
-          <div className="space-y-12">
+          <div className="space-y-6 sm:space-y-8">
             {/* First Row - Forward */}
             <div className="flex whitespace-nowrap overflow-hidden">
               <div data-gsap-testi-row-1 className="flex gap-8 px-4">
@@ -699,12 +699,12 @@ const LandingPageContent = () => {
                   { name: "Alex M.", role: "Law Student", text: "The AI extracts the most complex legal concepts into digestible bites. Incredible.", img: "/student-testimonial_2.jpg" },
                   { name: "David K.", role: "Engineering", text: "Quantum physics used to be a nightmare. Now it feels like a casual scroll.", img: "/student-testimonial_3.jpg" }
                 ].map((t, i) => (
-                  <div key={i} className="w-[88vw] sm:w-[450px] p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-4 sm:gap-6 shadow-sm hover:shadow-xl transition-shadow group-hover/row1:[animation-play-state:paused] whitespace-normal overflow-hidden">
-                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl overflow-hidden flex-shrink-0 border-4 border-white dark:border-zinc-800 shadow-lg">
+                  <div key={i} className="w-[88vw] min-[420px]:w-[78vw] sm:w-[360px] md:w-[400px] p-4 sm:p-5 rounded-[1.25rem] sm:rounded-[2rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-3 sm:gap-4 shadow-sm hover:shadow-lg transition-shadow group-hover/row1:[animation-play-state:paused] whitespace-normal overflow-hidden">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 border-white dark:border-zinc-800 shadow-md">
                       <img src={t.img} alt={t.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <p className="text-sm sm:text-base font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-3 break-words">"{t.text}"</p>
+                      <p className="text-xs sm:text-sm font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-2 break-words">"{t.text}"</p>
                       <div className="min-w-0">
                         <h4 className="font-black text-blue-600 dark:text-blue-400 truncate">{t.name}</h4>
                         <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 truncate">{t.role}</p>
@@ -726,12 +726,12 @@ const LandingPageContent = () => {
                   { name: "Marcus L.", role: "Business Major", text: "I finished my entire semester review in one afternoon. Unbelievable.", img: "/student-testimonial_3.jpg" },
                   { name: "Jordan P.", role: "CompSci", text: "Best AI integration I've seen in education. Clean, fast, and effective.", img: "/student-testimonial_1.jpg" }
                 ].map((t, i) => (
-                  <div key={i} className="w-[88vw] sm:w-[450px] p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-4 sm:gap-6 shadow-sm hover:shadow-xl transition-shadow group-hover/row2:[animation-play-state:paused] whitespace-normal overflow-hidden">
-                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl overflow-hidden flex-shrink-0 border-4 border-white dark:border-zinc-800 shadow-lg">
+                  <div key={i} className="w-[88vw] min-[420px]:w-[78vw] sm:w-[360px] md:w-[400px] p-4 sm:p-5 rounded-[1.25rem] sm:rounded-[2rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 flex items-center gap-3 sm:gap-4 shadow-sm hover:shadow-lg transition-shadow group-hover/row2:[animation-play-state:paused] whitespace-normal overflow-hidden">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 border-white dark:border-zinc-800 shadow-md">
                       <img src={t.img} alt={t.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
-                      <p className="text-sm sm:text-base font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-3 break-words">"{t.text}"</p>
+                      <p className="text-xs sm:text-sm font-bold italic leading-relaxed text-zinc-800 dark:text-zinc-200 line-clamp-2 break-words">"{t.text}"</p>
                       <div className="min-w-0">
                         <h4 className="font-black text-purple-600 dark:text-purple-400 truncate">{t.name}</h4>
                         <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 truncate">{t.role}</p>

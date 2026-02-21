@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { auth, prisma } from "@/lib/auth";
 import { getLearningProfileForUser, toPercent } from "@/lib/learning";
+import { DEFAULT_LESSONS } from "@/lib/default-lessons";
 import { DashboardView } from "@/components/dashboard-view";
 
 export default async function DashboardPage() {
@@ -41,6 +42,22 @@ export default async function DashboardPage() {
     },
   });
 
+  const defaultLessonsById = new Map(DEFAULT_LESSONS.map((lesson) => [lesson.id, lesson]));
+  const savedLessons = savedInteractions
+    .map((interaction) => {
+      const lesson = interaction.lesson ?? defaultLessonsById.get(interaction.lessonId);
+      if (!lesson) return null;
+      return {
+        id: interaction.id,
+        createdAt: interaction.createdAt.toISOString(),
+        lesson: {
+          type: lesson.type as "summary" | "mcq" | "video",
+          content: lesson.content,
+        },
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
   const totalLessons = await prisma.lesson.count();
   const learningProfile = await getLearningProfileForUser(prisma, session.user.id);
   const accuracyText = learningProfile.mcqAccuracy === null ? "N/A" : `${toPercent(learningProfile.mcqAccuracy)}%`;
@@ -59,14 +76,7 @@ export default async function DashboardPage() {
       completionText={completionText}
       reviewTopicsText={reviewTopicsText}
       difficultyLevel={learningProfile.difficultyLevel}
-      savedInteractions={savedInteractions.map((interaction) => ({
-        id: interaction.id,
-        createdAt: interaction.createdAt.toISOString(),
-        lesson: {
-          type: interaction.lesson.type as "summary" | "mcq" | "video",
-          content: interaction.lesson.content,
-        },
-      }))}
+      savedInteractions={savedLessons}
     />
   );
 }

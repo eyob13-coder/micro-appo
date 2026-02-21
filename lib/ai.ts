@@ -107,7 +107,7 @@ Use this structure:
 ]
 `;
 
-function readEnv(name: string): string | undefined {
+const readEnv = (name: string): string | undefined => {
   const value = process.env[name];
   if (!value) return undefined;
   const trimmed = value.trim();
@@ -125,7 +125,7 @@ const openai = new OpenAI({
   baseURL: geminiBaseUrl,
 });
 
-function getErrorDetails(error: unknown): { status: number; code?: string; message: string } {
+const getErrorDetails = (error: unknown): { status: number; code?: string; message: string } => {
   const maybeError = error as { status?: number; code?: string; message?: string };
   const status = typeof maybeError.status === "number" ? maybeError.status : 0;
   const code = typeof maybeError.code === "string" ? maybeError.code : undefined;
@@ -133,12 +133,42 @@ function getErrorDetails(error: unknown): { status: number; code?: string; messa
   return { status, code, message };
 }
 
-function stripTrailingCommas(jsonStr: string): string {
-  // Remove trailing commas before } or ] (common LLM JSON mistake)
-  return jsonStr.replace(/,\s*([\]}])/g, "$1");
+const getRetryAfterSeconds = (error: unknown): number | undefined => {
+  const maybeError = error as {
+    headers?: Record<string, string | string[]>;
+    response?: { headers?: Record<string, string | string[]> | { get?: (key: string) => string | null } };
+  };
+  const headers =
+    maybeError?.response?.headers ??
+    maybeError?.headers;
+  if (!headers) return undefined;
+  const readHeader = (key: string): string | undefined => {
+    if (typeof (headers as { get?: (k: string) => string | null }).get === "function") {
+      const value = (headers as { get: (k: string) => string | null }).get(key);
+      return value ?? undefined;
+    }
+    const record = headers as Record<string, string | string[]>;
+    const value = record[key] ?? record[key.toLowerCase()];
+    if (Array.isArray(value)) return value[0];
+    return value;
+  };
+  const retryAfter = readHeader("retry-after");
+  if (!retryAfter) return undefined;
+  const asNumber = Number(retryAfter);
+  if (!Number.isNaN(asNumber) && asNumber > 0) return Math.ceil(asNumber);
+  const asDate = Date.parse(retryAfter);
+  if (!Number.isNaN(asDate)) {
+    const diffMs = asDate - Date.now();
+    return diffMs > 0 ? Math.ceil(diffMs / 1000) : undefined;
+  }
+  return undefined;
 }
 
-function letterToIndex(letter: unknown): number | undefined {
+const stripTrailingCommas = (jsonStr: string): string => {
+  return jsonStr.replace(/,\s*([\]}])/g, "$1");
+};
+
+const letterToIndex = (letter: unknown): number | undefined => {
   if (typeof letter === "number") return letter;
   if (typeof letter === "string") {
     const upper = letter.trim().toUpperCase();
@@ -151,7 +181,7 @@ function letterToIndex(letter: unknown): number | undefined {
   return undefined;
 }
 
-function normalizeOptions(rawOptions: unknown): string[] | undefined {
+const normalizeOptions = (rawOptions: unknown): string[] | undefined => {
   if (!rawOptions) return undefined;
 
   if (Array.isArray(rawOptions)) {
@@ -177,7 +207,7 @@ function normalizeOptions(rawOptions: unknown): string[] | undefined {
   return undefined;
 }
 
-function normalizeCorrectAnswer(rawAnswer: unknown, options?: string[]): number | undefined {
+const normalizeCorrectAnswer = (rawAnswer: unknown, options?: string[]): number | undefined => {
   const parsed = letterToIndex(rawAnswer);
   if (parsed === undefined) return undefined;
   if (parsed < 0) return undefined;
@@ -185,7 +215,7 @@ function normalizeCorrectAnswer(rawAnswer: unknown, options?: string[]): number 
   return parsed;
 }
 
-function normalizeLessonType(rawType: unknown, lessonRecord: Record<string, unknown>): "summary" | "mcq" | "video" {
+const normalizeLessonType = (rawType: unknown, lessonRecord: Record<string, unknown>): "summary" | "mcq" | "video" => {
   if (rawType === "summary" || rawType === "mcq" || rawType === "video") return rawType;
   if (typeof lessonRecord.videoUrl === "string" && lessonRecord.videoUrl.length > 0) return "video";
 
@@ -194,7 +224,7 @@ function normalizeLessonType(rawType: unknown, lessonRecord: Record<string, unkn
   return "summary";
 }
 
-function normalizeContent(rawContent: unknown, lessonRecord: Record<string, unknown>, type: "summary" | "mcq" | "video"): string {
+const normalizeContent = (rawContent: unknown, lessonRecord: Record<string, unknown>, type: "summary" | "mcq" | "video"): string => {
   if (typeof rawContent === "string" && rawContent.trim().length > 0) return rawContent.trim();
 
   if (rawContent && typeof rawContent === "object") {
@@ -214,7 +244,7 @@ function normalizeContent(rawContent: unknown, lessonRecord: Record<string, unkn
   return "Key takeaway";
 }
 
-function fallbackOptionsFromSentence(sentence: string): string[] {
+const fallbackOptionsFromSentence = (sentence: string): string[] => {
   const short = sentence.length > 80 ? `${sentence.slice(0, 77)}...` : sentence;
   return [
     short,
@@ -224,7 +254,7 @@ function fallbackOptionsFromSentence(sentence: string): string[] {
   ];
 }
 
-function wordCount(text: string): number {
+const wordCount = (text: string): number => {
   return text
     .trim()
     .split(/\s+/)
@@ -239,14 +269,14 @@ const LOW_VALUE_PHRASES = [
   "based on the uploaded pdf section",
 ];
 
-function isLowValueContent(text: string): boolean {
+const isLowValueContent = (text: string): boolean => {
   const normalized = text.trim().toLowerCase();
   if (!normalized) return true;
   if (wordCount(normalized) < 6) return true;
   return LOW_VALUE_PHRASES.some((phrase) => normalized.includes(phrase));
 }
 
-function buildLocalFallbackLessons(text: string): MicroLesson[] {
+const buildLocalFallbackLessons = (text: string): MicroLesson[] => {
   const sentences = text
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
@@ -305,7 +335,7 @@ function buildLocalFallbackLessons(text: string): MicroLesson[] {
   ];
 }
 
-function sentenceToTopic(sentence: string): string {
+const sentenceToTopic = (sentence: string): string => {
   return sentence
     .replace(/[^\w\s]/g, " ")
     .split(/\s+/)
@@ -315,7 +345,7 @@ function sentenceToTopic(sentence: string): string {
     .trim() || "core concept";
 }
 
-function buildRichFallbackLessonsFromPdf(text: string): MicroLesson[] {
+const buildRichFallbackLessonsFromPdf = (text: string): MicroLesson[] => {
   const statements = extractPdfStatements(text);
   const s1 = statements[0] ?? "This uploaded PDF introduces an important core concept.";
   const s2 = statements[1] ?? "The PDF provides supporting details that explain how the concept works.";
@@ -366,7 +396,7 @@ function buildRichFallbackLessonsFromPdf(text: string): MicroLesson[] {
   ];
 }
 
-function extractPdfStatements(sourceText: string): string[] {
+const extractPdfStatements = (sourceText: string): string[] => {
   const statements = sourceText
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
@@ -395,7 +425,7 @@ function extractPdfStatements(sourceText: string): string[] {
   ].slice(0, 4);
 }
 
-function buildPdfGroundedMcq(sourceText: string, ordinal: number, id: string): MicroLesson {
+const buildPdfGroundedMcq = (sourceText: string, ordinal: number, id: string): MicroLesson => {
   const statements = extractPdfStatements(sourceText);
   const total = statements.length;
   const start = total > 0 ? ordinal % total : 0;
@@ -439,7 +469,7 @@ function buildPdfGroundedMcq(sourceText: string, ordinal: number, id: string): M
   };
 }
 
-function ensurePdfGroundedMcqs(lessons: MicroLesson[], sourceText: string): MicroLesson[] {
+const ensurePdfGroundedMcqs = (lessons: MicroLesson[], sourceText: string): MicroLesson[] => {
   const normalized = lessons.map((lesson, idx) => ({
     ...lesson,
     id: lesson.id || String(idx + 1),
@@ -482,7 +512,7 @@ function ensurePdfGroundedMcqs(lessons: MicroLesson[], sourceText: string): Micr
   return injected;
 }
 
-function enforceLessonSubstance(lessons: MicroLesson[], sourceText: string): MicroLesson[] {
+const enforceLessonSubstance = (lessons: MicroLesson[], sourceText: string): MicroLesson[] => {
   const statements = extractPdfStatements(sourceText);
   let summaryCursor = 0;
   let videoCursor = 0;
@@ -521,7 +551,7 @@ function enforceLessonSubstance(lessons: MicroLesson[], sourceText: string): Mic
   });
 }
 
-function parseLessons(rawText: string): MicroLesson[] {
+const parseLessons = (rawText: string): MicroLesson[] => {
   let cleaned = rawText
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
@@ -570,7 +600,7 @@ function parseLessons(rawText: string): MicroLesson[] {
   }
 }
 
-async function generateWithGemini(truncatedText: string): Promise<string> {
+const generateWithGemini = async (truncatedText: string): Promise<string> => {
   if (!geminiApiKey) {
     throw new AIServiceError(`${AI_PROVIDER_NAME} API key is missing. Set GEMINI_API_KEY in your environment.`, 500, "missing_api_key");
   }
@@ -600,6 +630,7 @@ async function generateWithGemini(truncatedText: string): Promise<string> {
       return rawText;
     } catch (error: unknown) {
       const { status, code, message } = getErrorDetails(error);
+      const retryAfterSeconds = getRetryAfterSeconds(error);
       const normalizedCode = (code ?? "").toLowerCase();
       const lowerMessage = message.toLowerCase();
       const isQuotaError =
@@ -610,13 +641,24 @@ async function generateWithGemini(truncatedText: string): Promise<string> {
             normalizedCode === "quota_exceeded" ||
             lowerMessage.includes("quota") ||
             lowerMessage.includes("insufficient")));
-      const isRetryable = !isQuotaError && (status === 429 || status >= 500);
+      const isRateLimited = status === 429;
+      const isRetryable = !isQuotaError && (status >= 500 || status === 0);
 
       if (isQuotaError) {
         throw new AIServiceError(
           `${AI_PROVIDER_NAME} request was rejected. Check your API key and project quota/billing.`,
           status || 429,
-          code
+          code,
+          retryAfterSeconds
+        );
+      }
+
+      if (isRateLimited) {
+        throw new AIServiceError(
+          `${AI_PROVIDER_NAME} rate limit hit. Please try again shortly.`,
+          429,
+          code,
+          retryAfterSeconds
         );
       }
 
@@ -624,13 +666,10 @@ async function generateWithGemini(truncatedText: string): Promise<string> {
         if (!isRetryable) {
           throw new AIServiceError(`${AI_PROVIDER_NAME} request failed. Check Gemini model name and API configuration.`, 400, code);
         }
-        const delay = attempt * 1000;
+        const delay = Math.min(4000, 800 * 2 ** (attempt - 1));
         console.log(`${AI_PROVIDER_NAME} API error. Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        if (status === 429) {
-          throw new AIServiceError(`${AI_PROVIDER_NAME} rate limit hit. Please try again shortly.`, 429, code);
-        }
         if (status >= 400 && status < 500) {
           throw new AIServiceError(`${AI_PROVIDER_NAME} request failed. Check Gemini model name and API configuration.`, 400, code);
         }
@@ -642,7 +681,7 @@ async function generateWithGemini(truncatedText: string): Promise<string> {
   throw new AIServiceError("Failed to generate content after retries.", 503);
 }
 
-export async function generateLessonsFromText(text: string): Promise<MicroLesson[]> {
+export const generateLessonsFromText = async (text: string): Promise<MicroLesson[]> => {
   // Truncate very long text to stay within token limits
   const maxChars = 10000;
   const truncatedText = text.length > maxChars
@@ -683,7 +722,7 @@ export async function generateLessonsFromText(text: string): Promise<MicroLesson
   return enriched;
 }
 
-export async function generateAnswer(question: string, context: string): Promise<string> {
+export const generateAnswer = async (question: string, context: string): Promise<string> => {
   const prompt = `
 You are a helpful and knowledgeable tutor for a micro-learning app.
 The user is viewing a lesson with the following content:

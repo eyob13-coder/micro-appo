@@ -98,9 +98,7 @@ export async function POST(request: NextRequest) {
     const source = await prisma.sourceMaterial.create({
       data: {
         content: extractedText,
-        user: {
-          connect: { id: session.user.id },
-        },
+        userId: session.user.id,
       },
     });
 
