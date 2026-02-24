@@ -138,6 +138,12 @@ export function DashboardView({
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/planner"
+              className="md:hidden px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400 hover:text-blue-600 transition-colors"
+            >
+              Planner
+            </Link>
             <div className="flex items-center gap-3 pl-1.5 pr-1.5 sm:pr-4 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
               {user.image ? (
                 <img
