@@ -22,6 +22,7 @@ model User {
   accounts      Account[]
   interactions  UserInteraction[]
   sourceMaterials SourceMaterial[]
+  studyPlans    StudyPlan[]
   
   isPro            Boolean   @default(false)
   uploadCount      Int       @default(0)
@@ -122,4 +123,71 @@ model SourceMaterial {
   @@index([userId, createdAt])
   
   @@map("source_material")
+}
+
+model StudyPlan {
+  id                   String         @id @default(cuid())
+  userId               String
+  title                String
+  timezone             String
+  weeklyTargetMinutes  Int            @default(420)
+  focusDays            String[]
+  startDate            DateTime       @default(now())
+  endDate              DateTime?
+  status               String         @default("active")
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks                StudyTask[]
+  sessions             StudySession[]
+
+  @@index([userId, status, createdAt])
+  @@map("study_plan")
+}
+
+model StudyTask {
+  id               String        @id @default(cuid())
+  planId           String
+  title            String
+  topic            String?
+  notes            String?       @db.Text
+  estimatedMinutes Int?
+  dueDate          DateTime?
+  priority         Int           @default(2)
+  status           String        @default("backlog")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  completedAt      DateTime?
+
+  plan             StudyPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  sessions         StudySession[]
+
+  @@index([planId, status])
+  @@index([planId, dueDate])
+  @@map("study_task")
+}
+
+model StudySession {
+  id               String    @id @default(cuid())
+  planId           String
+  taskId           String?
+  title            String
+  topic            String?
+  startAt          DateTime
+  endAt            DateTime
+  durationMinutes  Int
+  status           String    @default("scheduled")
+  energy           String?
+  notes            String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  completedAt      DateTime?
+
+  plan             StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  task             StudyTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([planId, startAt])
+  @@index([taskId])
+  @@map("study_session")
 }

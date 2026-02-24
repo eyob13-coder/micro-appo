@@ -127,6 +127,14 @@ export function DashboardView({
               </div>
               <span className="font-black text-xl tracking-tighter group-hover:text-blue-400 transition-colors">Swipr</span>
             </Link>
+            <div className="hidden md:flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 px-2 py-1 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+              <Link href="/dashboard" className="px-3 py-1 rounded-full hover:text-blue-600 transition-colors">
+                Dashboard
+              </Link>
+              <Link href="/planner" className="px-3 py-1 rounded-full hover:text-blue-600 transition-colors">
+                Planner
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
