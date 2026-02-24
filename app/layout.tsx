@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Swipr - Study in Bites",
   description: "AI-powered micro-learning for the modern attention span.",
+  icons: {
+    icon: "/swipr-logo.png",
+    apple: "/swipr-logo.png",
+  },
 };
 
 export default function RootLayout({

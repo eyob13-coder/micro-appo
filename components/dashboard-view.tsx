@@ -122,8 +122,8 @@ export function DashboardView({
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Zap className="text-white fill-white" size={20} />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden">
+                <img src="/swipr-logo.png" alt="Swipr" className="w-full h-full object-contain" />
               </div>
               <span className="font-black text-xl tracking-tighter group-hover:text-blue-400 transition-colors">Swipr</span>
             </Link>

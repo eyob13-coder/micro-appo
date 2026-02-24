@@ -288,8 +288,8 @@ const LandingPageContent = () => {
               className="flex items-center justify-between bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 px-3 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-lg shadow-zinc-500/5 gap-2"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-                  <Zap className="text-white fill-white" size={20} />
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+                  <img src="/swipr-logo.png" alt="Swipr" className="w-full h-full object-contain" />
                 </div>
                 <span className="font-black text-lg sm:text-2xl tracking-tighter truncate">Swipr</span>
               </div>
@@ -471,7 +471,7 @@ const LandingPageContent = () => {
               <Carousel
                 opts={{ loop: true }}
                 plugins={[heroCarouselAutoplay.current]}
-              className="relative z-10 rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden border-2 sm:border-8 border-white dark:border-zinc-900 shadow-[0_35px_80px_-30px_rgba(0,0,0,0.35)] aspect-[4/5] bg-zinc-100 dark:bg-zinc-800"
+                className="relative z-10 rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden border-2 sm:border-8 border-white dark:border-zinc-900 shadow-[0_35px_80px_-30px_rgba(0,0,0,0.35)] aspect-[4/5] bg-zinc-100 dark:bg-zinc-800"
               >
                 <CarouselContent>
                   {[
@@ -797,8 +797,8 @@ const LandingPageContent = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-16 mb-14 sm:mb-20">
               <div className="col-span-1 md:col-span-1 space-y-6">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <Zap className="text-white fill-white" size={16} />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                    <img src="/swipr-logo.png" alt="Swipr" className="w-full h-full object-contain" />
                   </div>
                   <span className="font-black text-xl tracking-tighter">Swipr</span>
                 </div>

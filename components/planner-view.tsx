@@ -478,8 +478,8 @@ export const PlannerView = ({ user, initialPlan, initialTasks, initialSessions }
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 shadow-lg shadow-blue-500/20">
-                <Zap className="text-white" size={20} />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden">
+                <img src="/swipr-logo.png" alt="Swipr" className="w-full h-full object-contain" />
               </div>
               <span className="text-xl font-black tracking-tight group-hover:text-blue-500 transition-colors">Swipr</span>
             </Link>
