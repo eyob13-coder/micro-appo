@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-function AuthPageContent() {
+const AuthPageContent = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");

@@ -371,7 +371,7 @@ const LandingPageContent = () => {
                   ))}
                 </span>
                 <br />
-                <span className="inline-flex flex-wrap gap-x-3">
+                <span className="inline-flex flex-col sm:flex-row sm:flex-wrap gap-x-3">
                   {["Consume", "Wisdom."].map((word) => (
                     <span
                       key={word}
