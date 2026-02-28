@@ -119,8 +119,8 @@ const AuthPageContent = () => {
 
         <div className="mx-auto w-full max-w-md space-y-6 rounded-3xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_24px_64px_-20px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           <div className="space-y-4 text-center">
-            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-500 shadow-lg shadow-blue-500/20">
-              <Sparkles className="text-white" size={24} />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-2 shadow-lg shadow-blue-500/20">
+              <img src="/swipr-logo.png" alt="Swipr Logo" className="w-full h-full object-contain" />
             </div>
             <div className="space-y-1">
               <h2 className="text-3xl font-black tracking-tight">{isSignUp ? "Create Account" : "Welcome Back"}</h2>
